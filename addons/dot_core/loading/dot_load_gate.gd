@@ -328,9 +328,7 @@ func _process(_delta: float) -> void:
 			_poll_requires()
 			if not _order.is_empty() and Time.get_ticks_msec() - _closed_msec > int(timeout_sec * 1000.0):
 				_timed_out.assign(_order)
-				DotLog.warn(CHANNEL, "the game did not become ready in time; showing it anyway", {
-					"seconds": timeout_sec, "still_held": _reason_strings(),
-				})
+				_log_timeout()
 				_holds.clear()
 				_requires.clear()
 				_order.clear()
@@ -344,6 +342,14 @@ func _process(_delta: float) -> void:
 			elif is_hosted() and Time.get_ticks_msec() - _host_wait_msec > int(host_wait_sec * 1000.0):
 				DotLog.warn(CHANNEL, "the host did not finish its warm-up in time; opening", {"seconds": host_wait_sec})
 				_open()
+
+
+## An error, naming the step the cover was saying: a step that never finishes (a script that did not compile, a signal that never came) must not read as a quiet warning.
+func _log_timeout() -> void:
+	var step := status_text()
+	DotLog.error(CHANNEL, "a load step did not finish; showing the game anyway", {
+		"seconds": timeout_sec, "step": step, "still_held": _reason_strings(),
+	})
 
 
 func _physics_process(_delta: float) -> void:
