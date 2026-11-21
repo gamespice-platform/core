@@ -19,7 +19,7 @@ func _cands() -> Array:
 
 
 func _run() -> void:
-	print("dot-core rotation spec self-test")
+	print("gs-core rotation spec self-test")
 	_strings()
 	_mappings()
 	_layering()

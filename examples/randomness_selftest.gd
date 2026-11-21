@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises dot-randomness with no world, transport or scene. Every check is about a distribution or agreement, never one number:
+## Exercises gs-randomness with no world, transport or scene. Every check is about a distribution or agreement, never one number:
 ## a hash returning half its range once passed a maximum-magnitude assertion, so uniformity is counted in quadrants and buckets.
 
 ## CHECKS is the guard the section counter cannot be: a script error aborts a test, not
@@ -19,7 +19,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-randomness self-test")
+	_line("gs-randomness self-test")
 	_line("")
 
 	_test_determinism()

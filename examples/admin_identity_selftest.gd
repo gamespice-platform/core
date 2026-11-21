@@ -26,7 +26,7 @@ class FakeIdentity:
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	_line("dot-core admin identity self-test")
+	_line("gs-core admin identity self-test")
 	_test_deny_by_default()
 	_test_admission()
 	_test_refusals()

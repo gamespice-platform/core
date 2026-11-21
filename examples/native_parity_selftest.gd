@@ -11,7 +11,7 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	print("dot-core native parity self-test")
+	print("gs-core native parity self-test")
 	var zero := 0.0
 	var xs: Array = [1.0, 2.5, -3.0, 0.1]
 	var dbl := func(x: float) -> float: return x * 2.0

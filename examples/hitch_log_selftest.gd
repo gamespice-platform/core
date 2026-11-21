@@ -14,7 +14,7 @@ var _measured: Array[Dictionary] = []
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	_line("dot-core hitch log self-test")
+	_line("gs-core hitch log self-test")
 	await _test_records_a_slow_frame()
 	await _test_quiet_frames()
 	await _test_report_and_stop()

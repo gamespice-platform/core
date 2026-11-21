@@ -8,7 +8,7 @@ Every third-person view in the family used one, and the first play test (2026-10
 
 - **It casts a ray unless it is given a shape.** A ray slips through the slit between an arch's pillar and its beam, or between two boxes a map built a cliff from, and the camera ends with its near plane inside both. `GSCameraProbe` sweeps a sphere and also casts a ray down the same line, because `cast_motion` ignores anything the sphere already overlaps at the pivot.
 - **It snaps.** The hit appears on one frame and the camera is at it on that frame; it disappears and the camera is back. See the look-ahead below.
-- **It excludes nothing unless told.** Every arm hung off a player collapsed into that player until each game learned to exclude it (dot-player-controller's [design](../../dot-player-controller/docs/design.md#the-third-person-half) has that story). The probe's sweeps start inside the player's own capsule and both ignore a shape they start in, so the own body cannot stop it; exclusions are still taken, for a vehicle whose roof the pivot sits above.
+- **It excludes nothing unless told.** Every arm hung off a player collapsed into that player until each game learned to exclude it (gs-player-controller's [design](../../gs-player-controller/docs/design.md#the-third-person-half) has that story). The probe's sweeps start inside the player's own capsule and both ignore a shape they start in, so the own body cannot stop it; exclusions are still taken, for a vehicle whose roof the pivot sits above.
 
 ## The look-ahead: smooth without being late
 
@@ -51,4 +51,4 @@ The client shell (GameSpice Server Deploy) runs it under its loading screen; `ex
 
 ## Drawing a held model at its own lens: GSViewLens
 
-A first-person model is drawn at its own vertical field of view (`hands_fov`) under whatever lens the camera has: `GSViewLens.apply(model, camera, hands_fov)` scales X and Y by the ratio of the two lenses and pulls the model toward the eye, never more than `MAX_PULL_IN`, so its apparent size at the reference lens is kept. `vertical_from_horizontal_4_3` turns a game's field-of-view setting (horizontal on a 4:3 frame) into the vertical one. zee-dot-weapons' `ZeeViewModel` and GameSpice Props' `GSToolView` both call it.
+A first-person model is drawn at its own vertical field of view (`hands_fov`) under whatever lens the camera has: `GSViewLens.apply(model, camera, hands_fov)` scales X and Y by the ratio of the two lenses and pulls the model toward the eye, never more than `MAX_PULL_IN`, so its apparent size at the reference lens is kept. `vertical_from_horizontal_4_3` turns a game's field-of-view setting (horizontal on a 4:3 frame) into the vertical one. zee-gs-weapons' `ZeeViewModel` and GameSpice Props' `GSToolView` both call it.

@@ -1,4 +1,4 @@
-How an addon ships a native (Rust GDExtension) twin of a hot script path without making the library a requirement. The one existing library is [GameSpice Sim](../../dot-sim/README.md); the helper is `GSNativeParity` (API level 40).
+How an addon ships a native (Rust GDExtension) twin of a hot script path without making the library a requirement. The one existing library is [GameSpice Sim](../../gs-sim/README.md); the helper is `GSNativeParity` (API level 40).
 
 **The rules.** The script original is the specification and the fallback. The twin gives the same answer to the bit. A caller reaches the native class only by name through `ClassDB` (`GSNativeParity.available(&"GSSimCrc")`, `ClassDB.instantiate`), never as a typed class, so scripts compile and run with no library. The library is never committed and a web export made with the plain template never carries it, so the web client always runs the script path; nothing else selects it.
 
@@ -27,4 +27,4 @@ Use seeded random inputs plus the edge cases (empty, one element, the largest), 
 
 **Skips are visible.** With the class absent `compare` returns `skipped`, so the suite passes on a machine without the library and says the native half did not run. On a machine that must have it (CI after `ci/install.sh`) set `GS_NATIVE_REQUIRED=1`: a skip then fails.
 
-**Where the code goes.** The kernel in a pure crate under dot-sim's `rust/crates` (plain arrays in and out, covered by `cargo test`), engine types only in `dot-sim-gdext`, a row in dot-sim's `GSSim.MODULES` and `docs/design.md`, and the parity suite beside the script original.
+**Where the code goes.** The kernel in a pure crate under gs-sim's `rust/crates` (plain arrays in and out, covered by `cargo test`), engine types only in `gs-sim-gdext`, a row in gs-sim's `GSSim.MODULES` and `docs/design.md`, and the parity suite beside the script original.

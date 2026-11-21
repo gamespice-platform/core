@@ -10,15 +10,15 @@ config_version=5
 
 [application]
 
-config/name="dot-core"
-config/description="Shared foundation for the dot-* Godot asset family."
+config/name="gs-core"
+config/description="Shared foundation for the gs-* Godot asset family."
 config/version="0.1.0"
 run/main_scene="res://examples/capability_report.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/dot_core/plugin.cfg")
+enabled=PackedStringArray("res://addons/gs_core/plugin.cfg")
 
 [importer_defaults]
 

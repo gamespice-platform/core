@@ -76,7 +76,7 @@ func _exercise() -> void:
 	))
 
 	# Hashing, through the scheduler, on a file we write ourselves.
-	var probe_path := "user://dot_core_selftest.bin"
+	var probe_path := "user://gs_core_selftest.bin"
 	var payload := GSHash.random_bytes(3 * 1024 * 1024)
 	var written := GSPaths.write_bytes(probe_path, payload)
 

@@ -39,7 +39,7 @@ func _exit_tree() -> void:
 
 
 func _run() -> void:
-	_line("dot-core load gate self-test")
+	_line("gs-core load gate self-test")
 	_line("")
 
 	await _test_audio_mute()  # first: gates left over from other sections hold the mute

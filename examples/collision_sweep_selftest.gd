@@ -13,7 +13,7 @@ var _world: Node3D
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	_line("dot-core collision sweep self-test")
+	_line("gs-core collision sweep self-test")
 	_world = Node3D.new()
 	add_child(_world)
 	_build_world()

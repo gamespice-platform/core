@@ -74,7 +74,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-core scheduler self-test")
+	_line("gs-core scheduler self-test")
 	_line("")
 
 	DirAccess.make_dir_recursive_absolute(DIR)

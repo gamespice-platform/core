@@ -1,6 +1,6 @@
 # GSHttpServer
 
-A small HTTP/1.1 server for admin pages and JSON endpoints (`net/dot_http_server.gd`, with `GSHttpRequest` and `GSHttpResponse`). It is for dot-workbench-style surfaces, not for serving a public site: one request per connection, `Connection: close`, no keep-alive, no chunked bodies, no pipelining, no `Expect: 100-continue`.
+A small HTTP/1.1 server for admin pages and JSON endpoints (`net/gs_http_server.gd`, with `GSHttpRequest` and `GSHttpResponse`). It is for gs-workbench-style surfaces, not for serving a public site: one request per connection, `Connection: close`, no keep-alive, no chunked bodies, no pipelining, no `Expect: 100-continue`.
 
 ## Use
 

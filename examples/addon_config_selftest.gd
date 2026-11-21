@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-core addon config self-test")
+	_line("gs-core addon config self-test")
 	_clean()
 	_test_missing()
 	_test_layering()
@@ -193,9 +193,9 @@ func _test_bad_file() -> void:
 func _test_server_tier() -> void:
 	_section("Dashed names, the cfg/server operator tier over cfg/addons")
 	_clean()
-	_check(GSAddonConfig.folder_name("dot-map") == "dot_map", "a dashed addon name becomes underscored")
+	_check(GSAddonConfig.folder_name("gs-map") == "gs_map", "a dashed addon name becomes underscored")
 	_check(GSAddonConfig.folder_name("zombie_zone") == "zombie_zone", "an underscored name is unchanged")
-	_check(GSAddonConfig.write_dir_for("dot-map") == "user://cfg/addon/dot_map", "write_dir_for underscores")
+	_check(GSAddonConfig.write_dir_for("gs-map") == "user://cfg/addon/gs_map", "write_dir_for underscores")
 	_write("10-base.yml", "mode: addon\nkeep: 1\nnest:\n  a: 1\n  b: 2\n")
 	_write_at(_server_dir(), "90-ops.yml", "mode: server\nnest:\n  b: 9\n")
 	var res := GSAddonConfig.load_dir(NAME, {"mode": "default"})

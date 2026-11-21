@@ -1,6 +1,6 @@
 # Reproducible randomness (`random/`)
 
-`random/` was `dot-randomness`, a repository of its own, until it was folded in here. It belongs in GameSpice Core because **it could never have been optional**: it already depended on `GSConfig`, `GSError`, `GSLog`, `GSRegistry` and `GSResult`, and while it sat behind an extra addon nobody installed it. Determinism has to arrive with GameSpice Core or it does not arrive.
+`random/` was `gs-randomness`, a repository of its own, until it was folded in here. It belongs in GameSpice Core because **it could never have been optional**: it already depended on `GSConfig`, `GSError`, `GSLog`, `GSRegistry` and `GSResult`, and while it sat behind an extra addon nobody installed it. Determinism has to arrive with GameSpice Core or it does not arrive.
 
 ## Addons that hand-rolled a generator
 
@@ -8,7 +8,7 @@ These wrote their own instead of using this one. Two of them hand-rolled the sam
 
 - **Converted** (they now use `random/`): GameSpice Spawn (it had folded its key in with `hash()`), GameSpice Combat (`GSSpread` had cleared the top bit of each splitmix constant to make them fit, so it mixed but was no longer the algorithm it named), GameSpice Team (`GSTeamRotation._roll` mixed Godot's 32-bit `hash(String)`, which is not promised stable across engine versions; 2026-10-10) and GameSpice Procedural Generation (`GSProcGenRandom` is now a wrapper; it turned out to be bit-identical, so no map changed; 2026-10-10).
 - **Deliberately not converted:**
-  - **dot-map** (`GSMapRotation`'s random pick) and **dot-vote** (the ballot fill and the random tie break) use the engine's `RandomNumberGenerator` with an explicit seed that is advanced deterministically, never reseeded from the clock. That is already reproducible on every machine; it is not a hand-rolled mixer, so converting buys nothing. dot-vote's `empty_rng` (`randomize()`) is the one clock-seeded draw, and it is used only when nothing else decides.
+  - **gs-map** (`GSMapRotation`'s random pick) and **gs-vote** (the ballot fill and the random tie break) use the engine's `RandomNumberGenerator` with an explicit seed that is advanced deterministically, never reseeded from the clock. That is already reproducible on every machine; it is not a hand-rolled mixer, so converting buys nothing. gs-vote's `empty_rng` (`randomize()`) is the one clock-seeded draw, and it is used only when nothing else decides.
   - **GameSpice Team's roster** (`rebalance`) passes a seeded `RandomNumberGenerator` to `GSTeamBalance.choose_victim`, a public signature; server-only (`authoritative`), so a client never has to agree with it.
   - **GameSpice 2D's `GS2DScatter._hash`** is a hand-rolled SplitMix64 with the constants masked to 63 bits. It stays because pellet positions are derived from the slot index on both ends and never sent: changing the mixer moves every pellet, and a server and a client shell on different GameSpice 2D builds would disagree about the field. Convert it only in a release that bumps GameSpice 2D's API level and rebuilds the shell in the same step.
 

@@ -44,7 +44,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-core HTTP self-test")
+	print("gs-core HTTP self-test")
 	print("")
 
 	if not _listen():

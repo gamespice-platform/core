@@ -22,7 +22,7 @@ func _provides(title: String, entries: Array) -> Dictionary:
 
 
 func _run() -> void:
-	_line("dot-core content index self-test")
+	_line("gs-core content index self-test")
 	_line("")
 
 	_test_shared()
@@ -50,7 +50,7 @@ func _test_shared() -> void:
 	var a := GSContentIndex.shared()
 	_check(a != null, "shared() creates an index")
 	_check(GSContentIndex.shared() == a, "and returns the same one afterwards")
-	_check(GSRegistry.get_service(GSContentIndex.SERVICE) == a, "registered as dot_content_index")
+	_check(GSRegistry.get_service(GSContentIndex.SERVICE) == a, "registered as gs_content_index")
 	var own := GSContentIndex.new()
 	GSRegistry.register(GSContentIndex.SERVICE, own)
 	_check(GSContentIndex.shared() == own, "a test can replace it")
@@ -62,7 +62,7 @@ func _test_add_and_read() -> void:
 	var added: Array = []
 	_idx.pack_added.connect(func(p: Dictionary, es: Array) -> void: added.append([p, es.size()]))
 	var r := _idx.add_pack({
-		"content_id": "a/maps", "version": "1.0.0", "prefix": "res://dot_cloud/a/maps/1.0.0",
+		"content_id": "a/maps", "version": "1.0.0", "prefix": "res://gs_cloud/a/maps/1.0.0",
 		"session": &"solo", "source": &"subscription",
 		"provides": _provides("Maps", [
 			{"kind": "map", "id": "m1", "name": "One", "scene": "maps/m1.tscn", "category": "c", "tags": ["x"]},
@@ -73,7 +73,7 @@ func _test_add_and_read() -> void:
 	_check(r.ok, "add_pack succeeds")
 	_check(added.size() == 1 and added[0][1] == 3, "pack_added fired once with three entries")
 	_idx.add_pack({
-		"content_id": "b/props", "version": "2.0.0", "prefix": "res://dot_cloud/b/props/2.0.0/",
+		"content_id": "b/props", "version": "2.0.0", "prefix": "res://gs_cloud/b/props/2.0.0/",
 		"session": &"solo", "source": &"subscription",
 		"provides": _provides("Props", [{"kind": "prop", "id": "p1", "name": "Crate", "scene": "c.tscn"}]),
 	})
@@ -81,7 +81,7 @@ func _test_add_and_read() -> void:
 	_check(_idx.entries(&"prop").size() == 1, "one prop listed")
 	var m := _idx.entry("a/maps@1.0.0:map/m1")
 	_check(m != null and m.name == "One" and m.category == "c", "entry by key, typed fields")
-	_check(m.path("scene") == "res://dot_cloud/a/maps/1.0.0/maps/m1.tscn", "path() joins the prefix")
+	_check(m.path("scene") == "res://gs_cloud/a/maps/1.0.0/maps/m1.tscn", "path() joins the prefix")
 	_check(m.path("missing") == "", "an absent field is empty")
 	_check(_idx.entry("a/maps@1.0.0:map/m2").path("scene") == "", "a path climbing out of the pack is empty")
 	_check(_idx.entry("a/maps@1.0.0:weapon/w1").meta.get("slot") == 2, "meta carried")

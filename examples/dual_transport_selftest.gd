@@ -12,7 +12,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-core dual transport self-test")
+	_line("gs-core dual transport self-test")
 	_line("")
 
 	if not ClassDB.class_exists("ENetMultiplayerPeer"):

@@ -12,7 +12,7 @@ var _section_count := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	_line("dot-core collision audit self-test")
+	_line("gs-core collision audit self-test")
 	_test_meshes()
 	_test_bodies_that_do_not_cover()
 	_test_csg()

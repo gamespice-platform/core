@@ -20,7 +20,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-core addon API self-test")
+	print("gs-core addon API self-test")
 
 	_test_what_this_build_has()
 	_test_reading_a_requirements_file()
@@ -52,25 +52,25 @@ func _test_what_this_build_has() -> void:
 
 	var api := GSAddonApi.new()
 
-	_check(GSAddonApi.installed("dot_core"), "dot-core is installed")
-	_check(not GSAddonApi.installed("dot_no_such_addon"), "an addon that is not here is not installed")
-	_check(not GSAddonApi.installed("../dot_core"), "and a name that walks out of addons/ is not an addon")
-	_check(GSAddonApi._installed.has("dot_core") and not GSAddonApi._installed.has("dot_no_such_addon"),
+	_check(GSAddonApi.installed("gs_core"), "gs-core is installed")
+	_check(not GSAddonApi.installed("gs_no_such_addon"), "an addon that is not here is not installed")
+	_check(not GSAddonApi.installed("../gs_core"), "and a name that walks out of addons/ is not an addon")
+	_check(GSAddonApi._installed.has("gs_core") and not GSAddonApi._installed.has("gs_no_such_addon"),
 		"a found addon is remembered for the run, a missing one is asked again (a pack may mount it)")
 	var t_level := Time.get_ticks_usec()
 	for _i in 1000:
-		GSAddonApi.build_level("dot_core")
+		GSAddonApi.build_level("gs_core")
 	var level_us := float(Time.get_ticks_usec() - t_level) / 1000.0
 	print("addon_api: build_level %.2f us a call once cached" % level_us)
-	_check(api.level_of("dot_core") == _core_level(), "dot-core's level is read from its api file (%d)" % api.level_of("dot_core"))
-	_check(api.level_of("dot_no_such_addon") == 0, "an absent addon has level 0")
-	_check(GSAddonApi.display_name("dot_player_controller") == "dot-player-controller", "and it is named the way a person names it")
+	_check(api.level_of("gs_core") == _core_level(), "gs-core's level is read from its api file (%d)" % api.level_of("gs_core"))
+	_check(api.level_of("gs_no_such_addon") == 0, "an absent addon has level 0")
+	_check(GSAddonApi.display_name("gs_player_controller") == "gs-player-controller", "and it is named the way a person names it")
 
-	api.overrides["dot_core"] = 7
-	_check(api.level_of("dot_core") == 7, "an override stands in for the build")
-	_check(api.oldest_of("dot_core") == 1, "and keeps the build's oldest when it names none")
-	api.overrides["dot_core"] = {"level": 7, "oldest": 5}
-	_check(api.oldest_of("dot_core") == 5, "or takes the one it names")
+	api.overrides["gs_core"] = 7
+	_check(api.level_of("gs_core") == 7, "an override stands in for the build")
+	_check(api.oldest_of("gs_core") == 1, "and keeps the build's oldest when it names none")
+	api.overrides["gs_core"] = {"level": 7, "oldest": 5}
+	_check(api.oldest_of("gs_core") == 5, "or takes the one it names")
 
 	_done()
 
@@ -78,20 +78,20 @@ func _test_what_this_build_has() -> void:
 func _test_reading_a_requirements_file() -> void:
 	_section("reading a requirements file")
 
-	var good := GSAddonApi.parse('{"format": 1, "addons": {"dot_net": 3, "dot_core": 1}}')
-	_check(good.ok and (good.value as Dictionary).get("dot_net") == 3, "a good file reads (%s)" % str(good.value if good.ok else good.error))
+	var good := GSAddonApi.parse('{"format": 1, "addons": {"gs_net": 3, "gs_core": 1}}')
+	_check(good.ok and (good.value as Dictionary).get("gs_net") == 3, "a good file reads (%s)" % str(good.value if good.ok else good.error))
 
 	_check(GSAddonApi.parse("not json").code() == GSError.CODE_PARSE, "not JSON is a parse failure")
-	_check(GSAddonApi.parse('{"addons": {"dot_net": 0}}').code() == GSError.CODE_PARSE, "a level of 0 is refused, not treated as none")
-	_check(GSAddonApi.parse('{"addons": {"dot_net": 1.5}}').code() == GSError.CODE_PARSE, "a fractional level is refused")
-	_check(GSAddonApi.parse('{"addons": {"dot_net": "3"}}').code() == GSError.CODE_PARSE, "a level written as text is refused")
+	_check(GSAddonApi.parse('{"addons": {"gs_net": 0}}').code() == GSError.CODE_PARSE, "a level of 0 is refused, not treated as none")
+	_check(GSAddonApi.parse('{"addons": {"gs_net": 1.5}}').code() == GSError.CODE_PARSE, "a fractional level is refused")
+	_check(GSAddonApi.parse('{"addons": {"gs_net": "3"}}').code() == GSError.CODE_PARSE, "a level written as text is refused")
 	_check(GSAddonApi.parse('{"addons": {"../evil": 1}}').code() == GSError.CODE_PARSE, "an addon name that cannot exist is refused")
 	_check(GSAddonApi.parse('{"format": 99, "addons": {}}').code() == GSError.CODE_VERSION, "a newer format says it is newer")
 
 	# Two builds of one tree must write the same bytes, or a release that re-derives the
 	# file reports a change that is not one.
-	var a := GSAddonApi.encode({"dot_net": 2, "dot_core": 1})
-	var b := GSAddonApi.encode({"dot_core": 1, "dot_net": 2})
+	var a := GSAddonApi.encode({"gs_net": 2, "gs_core": 1})
+	var b := GSAddonApi.encode({"gs_core": 1, "gs_net": 2})
 	_check(a == b, "encoding is sorted, so the order a table was built in does not show")
 	var back := GSAddonApi.parse(a)
 	_check(back.ok and (back.value as Dictionary).size() == 2, "and what it writes reads back")
@@ -103,11 +103,11 @@ func _test_a_requirement_this_build_meets() -> void:
 	_section("a requirement this build meets")
 
 	var api := GSAddonApi.new()
-	_check(api.check({"dot_core": 1}, "server").ok, "needing what this build has is fine")
+	_check(api.check({"gs_core": 1}, "server").ok, "needing what this build has is fine")
 	_check(api.check({}, "server").ok, "needing nothing is fine")
 
-	api.overrides["dot_core"] = 4
-	_check(api.check({"dot_core": 3}, "server").ok, "and so is needing less than this build has")
+	api.overrides["gs_core"] = 4
+	_check(api.check({"gs_core": 3}, "server").ok, "and so is needing less than this build has")
 
 	_done()
 
@@ -116,33 +116,33 @@ func _test_the_refusals_read_as_sentences() -> void:
 	_section("each refusal is a sentence a player can read")
 
 	var api := GSAddonApi.new()
-	api.overrides["dot_core"] = 2
+	api.overrides["gs_core"] = 2
 
-	var newer := api.check({"dot_core": 3}, "server")
+	var newer := api.check({"gs_core": 3}, "server")
 	_check(not newer.ok and newer.code() == GSError.CODE_VERSION, "a pack needing more is CODE_VERSION")
 	_check(
-		not newer.ok and newer.error.message == "This game needs dot-core API level 3 or newer; this server has level 2.",
+		not newer.ok and newer.error.message == "This game needs gs-core API level 3 or newer; this server has level 2.",
 		"and says so", newer.error.message if not newer.ok else ""
 	)
 
-	var missing := api.check({"dot_no_such_addon": 1}, "client")
+	var missing := api.check({"gs_no_such_addon": 1}, "client")
 	_check(
-		not missing.ok and missing.error.message == "This game needs dot-no-such-addon, and this client does not have it.",
+		not missing.ok and missing.error.message == "This game needs gs-no-such-addon, and this client does not have it.",
 		"an addon that is not here is named", missing.error.message if not missing.ok else ""
 	)
 
-	api.overrides["dot_core"] = {"level": 6, "oldest": 4}
-	var older := api.check({"dot_core": 2}, "server")
+	api.overrides["gs_core"] = {"level": 6, "oldest": 4}
+	var older := api.check({"gs_core": 2}, "server")
 	_check(
 		not older.ok and older.error.message.contains("no longer supports (it supports 4 to 6)"),
 		"a pack built for a level this build dropped says which ones it takes", older.error.message if not older.ok else ""
 	)
 
-	api.overrides["dot_core"] = 2
-	var both := api.check({"dot_no_such_addon": 1, "dot_core": 9}, "server")
-	_check(not both.ok and both.error.detail.contains("dot_core>=9") and both.error.detail.contains("dot_no_such_addon>=1"),
+	api.overrides["gs_core"] = 2
+	var both := api.check({"gs_no_such_addon": 1, "gs_core": 9}, "server")
+	_check(not both.ok and both.error.detail.contains("gs_core>=9") and both.error.detail.contains("gs_no_such_addon>=1"),
 		"every unmet requirement is in the detail", both.error.detail if not both.ok else "")
-	_check(not both.ok and both.error.message.contains("dot-core"), "and the message is the first of them, in name order")
+	_check(not both.ok and both.error.message.contains("gs-core"), "and the message is the first of them, in name order")
 
 	var text := api.check_text("{", "server")
 	_check(text.code() == GSError.CODE_PARSE, "a file that does not parse is refused as one rather than as met")
@@ -164,13 +164,13 @@ func _test_a_mounted_pack() -> void:
 	_check(api.check_mounted(none_dir, "client").ok, "a pack with no file needs nothing that can be checked")
 
 	var f := FileAccess.open(file_path, FileAccess.WRITE)
-	f.store_string(GSAddonApi.encode({"dot_core": _core_level() + 1}))
+	f.store_string(GSAddonApi.encode({"gs_core": _core_level() + 1}))
 	f.close()
 
 	var refused := api.check_mounted(SCRATCH, "client")
 	_check(not refused.ok and refused.error.message.contains("this client has level %d" % _core_level()), "one asking for more than this build has is refused", str(refused.error) if not refused.ok else "")
 
-	api.overrides["dot_core"] = _core_level() + 1
+	api.overrides["gs_core"] = _core_level() + 1
 	_check(api.check_mounted(SCRATCH + "/", "client").ok, "and passes on a build that has it, trailing slash or not")
 
 	DirAccess.remove_absolute(file_path)
@@ -189,36 +189,36 @@ func _test_deriving_and_auditing() -> void:
 	_check(derived.is_empty(), "this project, with its examples skipped, uses no addon (%s)" % str(derived))
 
 	var with_examples := GSAddonApi.derive("res://", PackedStringArray(["addons", ".godot"]))
-	_check(not with_examples.has("dot_core"), "with them, dot-core still does not require itself (%s)" % str(with_examples))
+	_check(not with_examples.has("gs_core"), "with them, gs-core still does not require itself (%s)" % str(with_examples))
 
 	var own_dir := SCRATCH + "_own"
 	DirAccess.make_dir_recursive_absolute(own_dir + "/addons/zz_own")
-	DirAccess.make_dir_recursive_absolute(own_dir + "/addons/dot_core")
+	DirAccess.make_dir_recursive_absolute(own_dir + "/addons/gs_core")
 	var proj := FileAccess.open(own_dir + "/project.godot", FileAccess.WRITE)
 	proj.store_string('[application]\nconfig/name="zz-own"\n')
 	proj.close()
 	var src := FileAccess.open(own_dir + "/g.gd", FileAccess.WRITE)
-	src.store_string('var a = load("res://addons/zz_own/x.tres")\nvar b = load("res://addons/dot_core/y.tres")\n')
+	src.store_string('var a = load("res://addons/zz_own/x.tres")\nvar b = load("res://addons/gs_core/y.tres")\n')
 	src.close()
 	var own_got := GSAddonApi.derive(own_dir)
 	_check(GSAddonApi.own_addon(own_dir) == "zz_own", "a project named zz-own provides the addon zz_own")
-	_check(not own_got.has("zz_own") and own_got.has("dot_core"), "a repo does not require the addon it provides, only the others (%s)" % str(own_got))
+	_check(not own_got.has("zz_own") and own_got.has("gs_core"), "a repo does not require the addon it provides, only the others (%s)" % str(own_got))
 	DirAccess.remove_absolute(own_dir + "/addons/zz_own")
-	DirAccess.remove_absolute(own_dir + "/addons/dot_core")
+	DirAccess.remove_absolute(own_dir + "/addons/gs_core")
 	DirAccess.remove_absolute(own_dir + "/addons")
 	DirAccess.remove_absolute(own_dir + "/g.gd")
 	DirAccess.remove_absolute(own_dir + "/project.godot")
 	DirAccess.remove_absolute(own_dir)
 
-	var missing := GSAddonApi.audit({}, {"dot_net": 2})
+	var missing := GSAddonApi.audit({}, {"gs_net": 2})
 	_check(missing.size() == 1 and missing[0].contains("not declared"), "an addon used and not declared is reported")
-	var over := GSAddonApi.audit({"dot_net": 5}, {"dot_net": 2})
+	var over := GSAddonApi.audit({"gs_net": 5}, {"gs_net": 2})
 	_check(over.size() == 1 and over[0].contains("declared at 5"), "and so is a level above what this build has")
-	_check(GSAddonApi.audit({"dot_net": 1}, {"dot_net": 2}).is_empty(), "a lower level is a game that knows better, and is fine")
+	_check(GSAddonApi.audit({"gs_net": 1}, {"gs_net": 2}).is_empty(), "a lower level is a game that knows better, and is fine")
 
-	# An addon only reached behind a presence check is optional. dot_core stands in for
+	# An addon only reached behind a presence check is optional. gs_core stands in for
 	# "the addon the shell lacks": it is installed, so it is derived unless the rule spares it.
-	var path := "res://addons/dot_core/core/dot_addon_api.gd"
+	var path := "res://addons/gs_core/core/gs_addon_api.gd"
 	var guarded := 'const P := "%s"\nfunc f():\n\tif ResourceLoader.exists(P):\n\t\tload(P).new()\n' % path
 	var cases := {
 		"guarded": [guarded, false],
@@ -238,8 +238,8 @@ func _test_deriving_and_auditing() -> void:
 		var got := GSAddonApi.derive(dir)
 		var opt := GSAddonApi.derive_optional(dir)
 		var want_required: bool = cases[key][1]
-		_check(got.has("dot_core") == want_required and opt.has("dot_core") == (not want_required),
-			"%s: dot-core is %s (required %s, optional %s)" % [key, "required" if want_required else "optional", str(got), str(opt)])
+		_check(got.has("gs_core") == want_required and opt.has("gs_core") == (not want_required),
+			"%s: gs-core is %s (required %s, optional %s)" % [key, "required" if want_required else "optional", str(got), str(opt)])
 		DirAccess.remove_absolute(dir + "/g.gd")
 		DirAccess.remove_absolute(dir)
 	# A scene naming the path cannot ask first, so it is required even beside a guarded script.
@@ -249,7 +249,7 @@ func _test_deriving_and_auditing() -> void:
 		var f2 := FileAccess.open(scene_dir + "/" + pair[0], FileAccess.WRITE)
 		f2.store_string(pair[1])
 		f2.close()
-	_check(GSAddonApi.derive(scene_dir).has("dot_core"), "a scene naming the path makes it required despite a guarded script")
+	_check(GSAddonApi.derive(scene_dir).has("gs_core"), "a scene naming the path makes it required despite a guarded script")
 	DirAccess.remove_absolute(scene_dir + "/g.gd")
 	DirAccess.remove_absolute(scene_dir + "/s.tscn")
 	DirAccess.remove_absolute(scene_dir)
@@ -284,42 +284,42 @@ func _test_clear_cache() -> void:
 func _test_floors() -> void:
 	_section("a game's floors: asking less of an addon it guards")
 
-	var derived := {"dot_ui": 2, "dot_net": 3, "dot_core": 3}
-	var lowered := GSAddonApi.apply_floors(derived, {"dot_ui": 1, "dot_vote": 1})
-	_check(lowered.get("dot_ui") == 1, "a floored addon is asked for at its floor (%s)" % str(lowered))
-	_check(lowered.get("dot_net") == 3 and lowered.get("dot_core") == 3, "every other addon stays derived")
-	_check(not lowered.has("dot_vote"), "and a floor on an addon the game does not use adds nothing")
-	_check(GSAddonApi.apply_floors(derived, {"dot_ui": 5}).get("dot_ui") == 2, "a floor above the build changes nothing")
-	_check(derived.get("dot_ui") == 2, "and the derived table is not touched")
+	var derived := {"gs_ui": 2, "gs_net": 3, "gs_core": 3}
+	var lowered := GSAddonApi.apply_floors(derived, {"gs_ui": 1, "gs_vote": 1})
+	_check(lowered.get("gs_ui") == 1, "a floored addon is asked for at its floor (%s)" % str(lowered))
+	_check(lowered.get("gs_net") == 3 and lowered.get("gs_core") == 3, "every other addon stays derived")
+	_check(not lowered.has("gs_vote"), "and a floor on an addon the game does not use adds nothing")
+	_check(GSAddonApi.apply_floors(derived, {"gs_ui": 5}).get("gs_ui") == 2, "a floor above the build changes nothing")
+	_check(derived.get("gs_ui") == 2, "and the derived table is not touched")
 
-	var guards := {"dot_ui": true}
-	var oldest := {"dot_ui": 1, "dot_net": 1, "dot_core": 1}
-	_check(GSAddonApi.floor_audit({"dot_ui": 1}, derived, guards, oldest).is_empty(), "a guarded floor in range is sound")
+	var guards := {"gs_ui": true}
+	var oldest := {"gs_ui": 1, "gs_net": 1, "gs_core": 1}
+	_check(GSAddonApi.floor_audit({"gs_ui": 1}, derived, guards, oldest).is_empty(), "a guarded floor in range is sound")
 
-	var unused := GSAddonApi.floor_audit({"dot_vote": 1}, derived, guards, oldest)
+	var unused := GSAddonApi.floor_audit({"gs_vote": 1}, derived, guards, oldest)
 	_check(unused.size() == 1 and unused[0].contains("does not use"), "a floor on an unused addon is stale", str(unused))
-	var above := GSAddonApi.floor_audit({"dot_ui": 3}, derived, guards, oldest)
+	var above := GSAddonApi.floor_audit({"gs_ui": 3}, derived, guards, oldest)
 	_check(above.size() == 1 and above[0].contains("above the 2"), "a floor above the build is refused", str(above))
-	var below := GSAddonApi.floor_audit({"dot_ui": 1}, derived, guards, {"dot_ui": 2})
+	var below := GSAddonApi.floor_audit({"gs_ui": 1}, derived, guards, {"gs_ui": 2})
 	_check(below.size() == 1 and below[0].contains("would refuse"), "a floor below the build's oldest is refused, because a current host would refuse the pack", str(below))
-	var unguarded := GSAddonApi.floor_audit({"dot_net": 2}, derived, guards, oldest)
+	var unguarded := GSAddonApi.floor_audit({"gs_net": 2}, derived, guards, oldest)
 	_check(unguarded.size() == 1 and unguarded[0].contains("no file asks"), "a floor nothing guards is refused", str(unguarded))
-	_check(GSAddonApi.floor_audit({"dot_net": 3}, derived, {}, oldest).is_empty(), "a floor at the build's level needs no guard: it lowers nothing")
+	_check(GSAddonApi.floor_audit({"gs_net": 3}, derived, {}, oldest).is_empty(), "a floor at the build's level needs no guard: it lowers nothing")
 
 	# A pinned shell is the ceiling: a floor at the pinned level is sound without a guard, one above it is not.
-	var pins := {"dot_net": 2}
-	_check(GSAddonApi.floor_audit({"dot_net": 2}, derived, {}, oldest, pins).is_empty(), "a floor at the pinned level needs no guard, though the build is higher")
-	var over_pin := GSAddonApi.floor_audit({"dot_net": 3}, derived, {}, oldest, pins)
+	var pins := {"gs_net": 2}
+	_check(GSAddonApi.floor_audit({"gs_net": 2}, derived, {}, oldest, pins).is_empty(), "a floor at the pinned level needs no guard, though the build is higher")
+	var over_pin := GSAddonApi.floor_audit({"gs_net": 3}, derived, {}, oldest, pins)
 	_check(over_pin.size() == 1 and over_pin[0].contains("pinned"), "a floor above the pinned level is refused", str(over_pin))
-	var under_pin := GSAddonApi.floor_audit({"dot_net": 1}, derived, {"dot_net": true}, oldest, pins)
+	var under_pin := GSAddonApi.floor_audit({"gs_net": 1}, derived, {"gs_net": true}, oldest, pins)
 	_check(under_pin.is_empty(), "a guarded floor below the pinned level is sound")
-	var unguarded_pin := GSAddonApi.floor_audit({"dot_net": 1}, derived, {}, oldest, pins)
+	var unguarded_pin := GSAddonApi.floor_audit({"gs_net": 1}, derived, {}, oldest, pins)
 	_check(unguarded_pin.size() == 1 and unguarded_pin[0].contains("no file asks"), "a floor below the pinned level with no guard is still refused", str(unguarded_pin))
-	_check(GSAddonApi.floor_audit({"dot_net": 3}, derived, {}, oldest, {"dot_ui": 1}).is_empty(), "an addon with no pin falls back to the build")
+	_check(GSAddonApi.floor_audit({"gs_net": 3}, derived, {}, oldest, {"gs_ui": 1}).is_empty(), "an addon with no pin falls back to the build")
 	var lock_dir := SCRATCH + "/pins"
 	DirAccess.make_dir_recursive_absolute(lock_dir)
 	var lf := FileAccess.open(lock_dir + "/addons.lock", FileAccess.WRITE)
-	lf.store_string("# c\ndot-no-such-repo\tv9.9.9\n")
+	lf.store_string("# c\ngs-no-such-repo\tv9.9.9\n")
 	lf.close()
 	_check(GSAddonApi.pinned_levels(lock_dir + "/addons.lock", lock_dir).is_empty(), "pinned_levels skips a repo it cannot read")
 	_check(GSAddonApi.pinned_levels(lock_dir + "/none.lock", lock_dir).is_empty(), "and an absent lock is empty")
@@ -342,14 +342,14 @@ func _floors_from_files() -> void:
 	DirAccess.make_dir_recursive_absolute(dir + "/game")
 	DirAccess.make_dir_recursive_absolute(dir + "/examples")
 	var game := FileAccess.open(dir + "/game/a.gd", FileAccess.WRITE)
-	game.store_string('var x := GSAddonApi.build_level("dot_ui") >= 2\nvar y := api.level_of( "dot_lighting" )\n')
+	game.store_string('var x := GSAddonApi.build_level("gs_ui") >= 2\nvar y := api.level_of( "gs_lighting" )\n')
 	game.close()
 	var example := FileAccess.open(dir + "/examples/b.gd", FileAccess.WRITE)
-	example.store_string('var z := GSAddonApi.build_level("dot_net")\n')
+	example.store_string('var z := GSAddonApi.build_level("gs_net")\n')
 	example.close()
 	var found := GSAddonApi.guarded(dir)
-	_check(found.has("dot_ui") and found.has("dot_lighting"), "guarded() finds build_level and level_of by name (%s)" % str(found))
-	_check(not found.has("dot_net"), "and skips examples/, as derive() does")
+	_check(found.has("gs_ui") and found.has("gs_lighting"), "guarded() finds build_level and level_of by name (%s)" % str(found))
+	_check(not found.has("gs_net"), "and skips examples/, as derive() does")
 	DirAccess.remove_absolute(dir + "/game/a.gd")
 	DirAccess.remove_absolute(dir + "/examples/b.gd")
 	DirAccess.remove_absolute(dir + "/game")
@@ -359,15 +359,15 @@ func _floors_from_files() -> void:
 
 	var udir := SCRATCH + "/uses"
 	DirAccess.make_dir_recursive_absolute(udir)
-	_check(not GSAddonApi.derive(udir).has("dot_core"), "a project with no uses file and no code does not use dot_core")
+	_check(not GSAddonApi.derive(udir).has("gs_core"), "a project with no uses file and no code does not use gs_core")
 	var uf := FileAccess.open(udir + "/" + GSAddonApi.USES_FILE, FileAccess.WRITE)
-	uf.store_string('{"format": 1, "uses": ["dot_core", "not an addon", 5]}')
+	uf.store_string('{"format": 1, "uses": ["gs_core", "not an addon", 5]}')
 	uf.close()
 	var uses := GSAddonApi.declared_uses(udir)
-	_check(uses == PackedStringArray(["dot_core"]), "declared_uses reads valid names only", str(uses))
+	_check(uses == PackedStringArray(["gs_core"]), "declared_uses reads valid names only", str(uses))
 	var by_file := GSAddonApi.derive(udir)
-	_check(by_file.has("dot_core"), "derive() counts an addon named in requires.uses.json (%s)" % str(by_file))
-	_check(GSAddonApi.floor_audit({"dot_core": by_file.get("dot_core", 1)}, by_file, {}, {}).is_empty(), "so a floor on it is not refused as unused")
+	_check(by_file.has("gs_core"), "derive() counts an addon named in requires.uses.json (%s)" % str(by_file))
+	_check(GSAddonApi.floor_audit({"gs_core": by_file.get("gs_core", 1)}, by_file, {}, {}).is_empty(), "so a floor on it is not refused as unused")
 	DirAccess.remove_absolute(udir + "/" + GSAddonApi.USES_FILE)
 	DirAccess.remove_absolute(udir)
 
@@ -394,7 +394,7 @@ func _check(ok: bool, what: String, detail: String = "") -> void:
 ## GameSpice Core's level as its api file says, read directly. A literal here failed the day
 ## the level first moved, which is a check of the number rather than of the reading.
 func _core_level() -> int:
-	return int(load("res://addons/dot_core/dot_core_api.gd").get("LEVEL"))
+	return int(load("res://addons/gs_core/gs_core_api.gd").get("LEVEL"))
 
 
 ## A repo whose name is not its addon's (repo `fc-renamed` holds `legacy_renamed`) is read by the addon folder, located through the repo name or its origin URL.

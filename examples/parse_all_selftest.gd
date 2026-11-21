@@ -1,9 +1,9 @@
 extends Node
 
-## Runs tools/dot_parse_all.gd as a separate process over bad and good scripts. The bad ones are written to user:// here, since a tracked broken
+## Runs tools/gs_parse_all.gd as a separate process over bad and good scripts. The bad ones are written to user:// here, since a tracked broken
 ## .gd would fail this repository's own parse pass. Armed: every bad one is named, no good one is, and the exit is non-zero.
 
-const TOOL := "res://addons/dot_core/tools/dot_parse_all.gd"
+const TOOL := "res://addons/gs_core/tools/gs_parse_all.gd"
 const DIR := "user://parse_all_selftest"
 const FILES := {
 	"good.gd": "class_name GSParseGood\nextends RefCounted\nfunc hi() -> int:\n\treturn 1\n",
@@ -36,7 +36,7 @@ func _ready() -> void:
 	lf.store_string("\n".join(list) + "\n")
 	lf.close()
 
-	print("dot-core parse_all self-test")
+	print("gs-core parse_all self-test")
 	var out := []
 	var code := OS.execute(OS.get_executable_path(), [
 		"--headless", "--path", ProjectSettings.globalize_path("res://"),

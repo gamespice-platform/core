@@ -8,7 +8,7 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	print("dot-core platform self-test")
+	print("gs-core platform self-test")
 	var build := GSPlatform.is_mobile() or (not GSPlatform.is_headless() and DisplayServer.is_touchscreen_available())
 	GSPlatform.touch_override = -1
 	_check("no override asks the build", GSPlatform.has_touch() == build)

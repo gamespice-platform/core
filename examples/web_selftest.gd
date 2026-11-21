@@ -33,8 +33,8 @@ func _ready() -> void:
 	_check(true, "publish and reload_page are no-ops off-web")
 	_check(GSWeb.query_param_from("?a=1&b=two", "b") == "two" and GSWeb.query_param_from("", "b") == "", "query_param_from parses a search string")
 	_check(GSWeb.query_param("press") == "" and GSWeb.pathname() == "", "page queries are empty off-web")
-	var js := FileAccess.get_file_as_string("res://addons/dot_core/web/dot_web.js")
-	_check(not js.is_empty() and not js.contains("eval(") and not js.contains("new Function("), "dot_web.js evaluates no string")
+	var js := FileAccess.get_file_as_string("res://addons/gs_core/web/gs_web.js")
+	_check(not js.is_empty() and not js.contains("eval(") and not js.contains("new Function("), "gs_web.js evaluates no string")
 	print("%d passed, %d failed" % [_passed, _failed])
 	if _passed + _failed != CHECKS:
 		print("ERROR: %d checks ran, %d expected" % [_passed + _failed, CHECKS])

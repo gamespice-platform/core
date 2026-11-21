@@ -1,7 +1,7 @@
 extends CharacterBody3D
 
 ## A body that falls, for load_gate_selftest's settle section: it reads "input" only while
-## [member input_enabled], as a dot-player-controller controller does, and counts events.
+## [member input_enabled], as a gs-player-controller controller does, and counts events.
 
 var input_enabled := true
 var input_ticks := 0

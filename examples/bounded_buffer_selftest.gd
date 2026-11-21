@@ -10,7 +10,7 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	print("dot-core bounded buffer self-test")
+	print("gs-core bounded buffer self-test")
 	_unlimited()
 	_drop_oldest()
 	_refuse()

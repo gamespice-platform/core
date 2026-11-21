@@ -24,11 +24,11 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	print("dot-core web limits self-test")
+	print("gs-core web limits self-test")
 	var t := GSTransportWebSocket.new()
 	await _defaults()
 	await _burst("defaults", t, GSTransportWebSocket.new(), true)
-	await _burst("a server with the dot-server buffers", _server_side(), GSTransportWebSocket.new(), true)
+	await _burst("a server with the gs-server buffers", _server_side(), GSTransportWebSocket.new(), true)
 	await _burst("the old 64 KiB buffers (control)", _small(), _small(), false)
 	print("%d sections, %d passed, %d failed" % [_sections, _passed, _failed])
 	var bad := _sections != SECTIONS or _passed + _failed != CHECKS or _failed > 0

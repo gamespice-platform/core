@@ -26,7 +26,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-core camera self-test")
+	_line("gs-core camera self-test")
 	_line("")
 
 	_test_wall_behind()

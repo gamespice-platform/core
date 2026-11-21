@@ -1,0 +1,72 @@
+class_name GSShotSeq
+extends RefCounted
+## Frame sequence after a screenshot, so a reviewer can see motion: GS_SHOT_FRAMES frames over GS_SHOT_SECS seconds into "<still>.seq/NNN.png". Off unless GS_SHOT_FRAMES is set.
+
+var _frames := 0
+var _interval_msec := 0
+var _dir := ""
+var _taken := 0
+var _next_msec := 0
+
+
+## Reads the environment; true when a sequence was asked for.
+func enabled() -> bool:
+	_frames = clampi(GSConfig.gs_env("GS_SHOT_FRAMES").to_int(), 0, 48)
+	var secs := clampf(GSConfig.gs_env("GS_SHOT_SECS").to_float() if GSConfig.gs_env("GS_SHOT_SECS") != "" else 2.0, 0.2, 6.0)
+	_interval_msec = int(secs * 1000.0 / maxf(_frames, 1))
+	return _frames > 0
+
+
+## Starts a sequence beside the still at `still_path` (the still itself is frame 0).
+func begin(still_path: String) -> void:
+	_dir = still_path.get_basename() + ".seq"
+	DirAccess.make_dir_recursive_absolute(_dir)
+	_taken = 0
+	_next_msec = Time.get_ticks_msec()
+
+
+## Call once per frame; saves a frame when one is due. True while frames remain.
+func step(viewport: Viewport) -> bool:
+	if _taken >= _frames:
+		return false
+	if Time.get_ticks_msec() < _next_msec:
+		return true
+	var img := viewport.get_texture().get_image()
+	if img != null:  # headless renderers give no image; still advance so callers terminate
+		img.save_png("%s/%03d.png" % [_dir, _taken])
+	_taken += 1
+	# Saving a large frame can outlast the interval; counting from before the save made the next frame due one
+	# process frame later, near-identical to this one (render_reload frames 000 and 001 were duplicates).
+	_next_msec = maxi(_next_msec + _interval_msec, Time.get_ticks_msec() + _interval_msec / 2)
+	return _taken < _frames
+
+
+## For await-style tools: records the sequence beside `still_path` and returns when done; does nothing unless enabled. `viewport` is what is saved (the root when null), so a tool that renders into a SubViewport records that.
+func record(tree: SceneTree, still_path: String, viewport: Viewport = null) -> void:
+	if not enabled():
+		return
+	begin(still_path)
+	var vp := viewport if viewport != null else tree.root
+	while step(vp):
+		await tree.process_frame
+
+
+var _following := false
+
+
+## For tools that save stills from _process and keep simulating: starts a clip beside `still_path` that follow() fills while the tool carries on. False (and nothing to do) unless enabled.
+func start_follow(still_path: String) -> bool:
+	if _following or not enabled():
+		return false
+	begin(still_path)
+	_following = true
+	return true
+
+
+## Call at the top of _process; true while a clip started by start_follow() is still recording, so the tool should hold its state machine (the scene keeps simulating) until it returns false.
+func follow(viewport: Viewport) -> bool:
+	if not _following:
+		return false
+	if not step(viewport):
+		_following = false
+	return _following

@@ -10,7 +10,7 @@ var _failed := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	print("dot-core wire doc self-test")
+	print("gs-core wire doc self-test")
 	var doc := {"b": 2, "a": [1, 2, 3], "name": "x".repeat(400)}
 	var bytes := GSWireDoc.encode(doc)
 	var back := GSWireDoc.decode_text(bytes, "map")

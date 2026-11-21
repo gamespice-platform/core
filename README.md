@@ -6,8 +6,8 @@ It targets desktop (Windows, macOS, Linux), mobile (Android, iOS) and the web fr
 
 ## Install
 
-1. Copy `addons/dot_core/` into your project.
-2. Enable dot-core in *Project > Project Settings > Plugins*.
+1. Copy `addons/gs_core/` into your project.
+2. Enable gs-core in *Project > Project Settings > Plugins*.
 3. Run `godot --headless --path . --import` once so the `GS*` classes register.
 
 The plugin only registers inspector types. Every class is available by its `class_name` whether the plugin is enabled or not. Starting a new game? Begin from [GameSpice Game Template](https://github.com/gamespice-platform/game-template).
@@ -46,7 +46,7 @@ Every addon reads settings in the same order, weakest first:
 | Addon defaults | The addon's schema, then `cfg/addon/<addon>/` |
 | Game | `cfg/game/<game>/<addon>/` |
 | Server operator | `cfg/server/addon/<addon>/`, then `cfg/server/game/<game>/<addon>/` |
-| Environment | `DOT_*` variables |
+| Environment | `GS_*` variables |
 | Command line | `--flag` arguments |
 | Runtime | For example a console `set` |
 
@@ -72,7 +72,7 @@ godot --headless --path . res://examples/randomness_selftest.tscn
 
 Worker caps are settings: `GSParallel.auto_max` (default 8, 0 = unlimited) and `GSScheduler.auto_thread_max` (default 4, 0 = unlimited); negatives are refused with an error.
 
-The first scene prints what the build can do. The second checks the randomness code. Both run offline. The capability report shows quickly that a web export has no threads or that a device reports no storage quota, which changes how dot-cloud behaves. The `examples/` folder holds more self-tests.
+The first scene prints what the build can do. The second checks the randomness code. Both run offline. The capability report shows quickly that a web export has no threads or that a device reports no storage quota, which changes how gs-cloud behaves. The `examples/` folder holds more self-tests.
 
 ## Status
 

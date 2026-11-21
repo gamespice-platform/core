@@ -13,7 +13,7 @@ var _section_count := 0
 
 func _ready() -> void:
 	GSLog.set_level(GSLog.Level.ERROR)
-	_line("dot-core parallel self-test")
+	_line("gs-core parallel self-test")
 	_line("")
 
 	var was_verify := GSParallel.verify

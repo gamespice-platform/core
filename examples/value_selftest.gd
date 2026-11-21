@@ -17,7 +17,7 @@ func _ready() -> void:
 
 
 func _run() -> void:
-	_line("dot-core value self-test")
+	_line("gs-core value self-test")
 	_line("")
 
 	_test_mismatched_types()

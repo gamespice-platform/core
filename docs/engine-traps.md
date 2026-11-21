@@ -15,7 +15,7 @@ GDScript's comparison operators between two **mismatched Variant types** are a r
 
 Everything `GSWeb.get_global` hands back is a `JavaScriptObject`, which forwards **every** member access to the JavaScript object behind it. `obj.get("hidden")` invokes a JavaScript method called `get` (`TypeError: obj[method] is not a function`), and `obj.call("addEventListener", …)` asks for a method called `call`. Both parse, both are silent off-web, and neither reaches a headless check.
 
-Read properties with `.hidden`; call methods with `.addEventListener(…)`. The bridge singleton itself is an ordinary `Object`, so `bridge().call("get_interface", name)` inside `dot_web.gd` is correct. It has bitten GameSpice Auth's web handoff, `GSWeb.watch_visibility` (no listener attached, the browser-tab keepalive a no-op that passed its suite) and GameSpice Server Deploy's reload.
+Read properties with `.hidden`; call methods with `.addEventListener(…)`. The bridge singleton itself is an ordinary `Object`, so `bridge().call("get_interface", name)` inside `gs_web.gd` is correct. It has bitten GameSpice Auth's web handoff, `GSWeb.watch_visibility` (no listener attached, the browser-tab keepalive a no-op that passed its suite) and GameSpice Server Deploy's reload.
 
 ## Signals from worker threads must be deferred
 
@@ -37,11 +37,11 @@ In a debug build the engine appends an `at:` line and a full GDScript backtrace 
 
 ## `HTTPRequest` has no append mode
 
-A ranged body written straight to the destination replaced the partial with its own tail, and `GSHttp.download_to_file` returned `ok`, `resumed: true` and a plausible status. Only the bytes on disk showed it, which is why `http_selftest` runs a real server ([transports.md](transports.md#dothttp)).
+A ranged body written straight to the destination replaced the partial with its own tail, and `GSHttp.download_to_file` returned `ok`, `resumed: true` and a plausible status. Only the bytes on disk showed it, which is why `http_selftest` runs a real server ([transports.md](transports.md#gshttp)).
 
 ## No JavaScript evaluation
 
-The game origin's CSP is `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:`, so `JavaScriptBridge.eval` throws `EvalError` and returns null, which reads like an empty page. Add a named function to `web/dot_web.js` (on `window.dotWeb`) and call it from `GSWeb` through `get_interface`; pass structured data as a JSON string, since only primitives and objects cross the bridge, and park a Promise's result on a property to poll. dot-ci's `check-no-js-eval.py` enforces it.
+The game origin's CSP is `script-src 'self' 'unsafe-inline' 'wasm-unsafe-eval' blob:`, so `JavaScriptBridge.eval` throws `EvalError` and returns null, which reads like an empty page. Add a named function to `web/gs_web.js` (on `window.gsWeb`) and call it from `GSWeb` through `get_interface`; pass structured data as a JSON string, since only primitives and objects cross the bridge, and park a Promise's result on a property to poll. gs-ci's `check-no-js-eval.py` enforces it.
 
 ## A bare `free()` does not parse in a release template
 
