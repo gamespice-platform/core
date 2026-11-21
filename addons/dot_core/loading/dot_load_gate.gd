@@ -328,8 +328,9 @@ func _process(_delta: float) -> void:
 			_poll_requires()
 			if not _order.is_empty() and Time.get_ticks_msec() - _closed_msec > int(timeout_sec * 1000.0):
 				_timed_out.assign(_order)
-				DotLog.warn(CHANNEL, "the game did not become ready in time; showing it anyway", {
-					"seconds": timeout_sec, "still_held": _reason_strings(),
+				# An error, naming the step the cover was saying: a step that never finishes (a script that did not compile, a signal that never came) must not read as a quiet warning.
+				DotLog.error(CHANNEL, "the step '%s' did not finish in %d s; showing the game anyway" % [status_text(), int(timeout_sec)], {
+					"seconds": timeout_sec, "step": status_text(), "still_held": _reason_strings(),
 				})
 				_holds.clear()
 				_requires.clear()
