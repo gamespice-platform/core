@@ -1,5 +1,5 @@
 @tool
-class_name DotConfig
+class_name GSConfig
 extends Resource
 
 ## Base class for every gs-* configuration object, with layered overrides.
@@ -36,8 +36,8 @@ func sensitive_keys() -> PackedStringArray:
 
 ## Checks internal consistency after every layer has been applied.
 ## Override for what reflection cannot catch (port range, zero tickrate, URL scheme).
-func validate() -> DotResult:
-	return DotResult.success(null)
+func validate() -> GSResult:
+	return GSResult.success(null)
 
 
 
@@ -95,7 +95,7 @@ func apply_dictionary(
 
 		if key == "":
 			unknown_keys.append(str(raw_key))
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL,
 				"unknown config key",
 				{"key": str(raw_key), "layer": layer_name}
@@ -103,7 +103,7 @@ func apply_dictionary(
 			continue
 
 		if not allow_sensitive and blocked.has(key):
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL,
 				"refusing to set a sensitive key from this layer",
 				{"key": key, "layer": layer_name}
@@ -112,7 +112,7 @@ func apply_dictionary(
 
 		var coerced := _coerce(d[raw_key], _property_type(key))
 		if not coerced.ok:
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL,
 				"bad value for config key",
 				{
@@ -164,13 +164,13 @@ static func _normalise_key(s: String) -> String:
 
 ## Converts a config-file or environment value to a property's declared type.
 ## Environment and argv values are strings; strictness here reports a bad value with its key at boot.
-func _coerce(value: Variant, want: int) -> DotResult:
+func _coerce(value: Variant, want: int) -> GSResult:
 	if want == TYPE_NIL:
-		return DotResult.success(value)
+		return GSResult.success(value)
 
 	var have := typeof(value)
 	if have == want:
-		return DotResult.success(value)
+		return GSResult.success(value)
 
 	match want:
 		TYPE_BOOL:
@@ -181,75 +181,75 @@ func _coerce(value: Variant, want: int) -> DotResult:
 
 		TYPE_FLOAT:
 			if have == TYPE_INT:
-				return DotResult.success(float(value))
+				return GSResult.success(float(value))
 			if have == TYPE_STRING or have == TYPE_STRING_NAME:
 				var s := str(value).strip_edges()
 				if s.is_valid_float():
-					return DotResult.success(s.to_float())
-				return DotResult.fail(
-					DotError.CODE_INVALID, "'%s' is not a number." % s
+					return GSResult.success(s.to_float())
+				return GSResult.fail(
+					GSError.CODE_INVALID, "'%s' is not a number." % s
 				)
 
 		TYPE_STRING:
 			if have != TYPE_OBJECT and have != TYPE_DICTIONARY:
-				return DotResult.success(str(value))
+				return GSResult.success(str(value))
 
 		TYPE_STRING_NAME:
-			return DotResult.success(StringName(str(value)))
+			return GSResult.success(StringName(str(value)))
 
 		TYPE_PACKED_STRING_ARRAY:
 			var arr := _to_string_list(value)
 			if arr == null:
-				return DotResult.fail(
-					DotError.CODE_INVALID, "Cannot read '%s' as a list." % value
+				return GSResult.fail(
+					GSError.CODE_INVALID, "Cannot read '%s' as a list." % value
 				)
-			return DotResult.success(arr)
+			return GSResult.success(arr)
 
 		TYPE_ARRAY:
 			if have == TYPE_PACKED_STRING_ARRAY:
-				return DotResult.success(Array(value))
+				return GSResult.success(Array(value))
 			var arr2 := _to_string_list(value)
 			if arr2 != null:
-				return DotResult.success(Array(arr2))
+				return GSResult.success(Array(arr2))
 
 	return _expected(want, have)
 
 
-func _expected(want: int, have: int) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INVALID,
+func _expected(want: int, have: int) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INVALID,
 		"Expected %s, got %s." % [type_string(want), type_string(have)]
 	)
 
 
-func _coerce_bool(value: Variant, have: int) -> DotResult:
+func _coerce_bool(value: Variant, have: int) -> GSResult:
 	if have == TYPE_STRING or have == TYPE_STRING_NAME:
 		var s := str(value).strip_edges().to_lower()
 		if ["1", "true", "yes", "on", "enabled"].has(s):
-			return DotResult.success(true)
+			return GSResult.success(true)
 		if ["0", "false", "no", "off", "disabled", ""].has(s):
-			return DotResult.success(false)
-		return DotResult.fail(DotError.CODE_INVALID, "'%s' is not a boolean." % s)
+			return GSResult.success(false)
+		return GSResult.fail(GSError.CODE_INVALID, "'%s' is not a boolean." % s)
 	if have == TYPE_INT or have == TYPE_FLOAT:
-		return DotResult.success(float(value) != 0.0)
+		return GSResult.success(float(value) != 0.0)
 	return _expected(TYPE_BOOL, have)
 
 
-func _coerce_int(value: Variant, have: int) -> DotResult:
+func _coerce_int(value: Variant, have: int) -> GSResult:
 	if have == TYPE_FLOAT:
-		return DotResult.success(int(value))
+		return GSResult.success(int(value))
 	if have == TYPE_BOOL:
-		return DotResult.success(1 if value else 0)
+		return GSResult.success(1 if value else 0)
 	if have == TYPE_STRING or have == TYPE_STRING_NAME:
 		var s := str(value).strip_edges()
 		if s.is_valid_int():
-			return DotResult.success(s.to_int())
+			return GSResult.success(s.to_int())
 		# JSON has no integers, so whole floats arrive as "27015.0".
 		if s.is_valid_float():
 			var f := s.to_float()
 			if is_equal_approx(f, roundf(f)):
-				return DotResult.success(int(f))
-		return DotResult.fail(DotError.CODE_INVALID, "'%s' is not an integer." % s)
+				return GSResult.success(int(f))
+		return GSResult.fail(GSError.CODE_INVALID, "'%s' is not an integer." % s)
 	return _expected(TYPE_INT, have)
 
 
@@ -290,33 +290,33 @@ static func _to_string_list(value: Variant) -> Variant:
 
 ## Applies a JSON config file. A missing file is not an error (first launch runs on defaults).
 ## A file that exists but is malformed IS an error: the admin wrote it and means it.
-func apply_json_file(path: String) -> DotResult:
+func apply_json_file(path: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		DotLog.debug(CHANNEL, "no config file", {"path": path})
-		return DotResult.success(PackedStringArray())
+		GSLog.debug(CHANNEL, "no config file", {"path": path})
+		return GSResult.success(PackedStringArray())
 
-	var res := DotPaths.read_json(path)
+	var res := GSPaths.read_json(path)
 	if not res.ok:
 		return res.wrap("Could not read config '%s'." % path)
 
 	var data: Variant = res.value
 	if not (data is Dictionary):
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"Config '%s' must contain a JSON object." % path
 		)
 
 	var applied := apply_dictionary(data as Dictionary, path)
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"applied config file",
 		{"path": path, "keys": applied.size()}
 	)
-	return DotResult.success(applied)
+	return GSResult.success(applied)
 
 
-func save_json_file(path: String) -> DotResult:
-	return DotPaths.write_json(path, to_dictionary())
+func save_json_file(path: String) -> GSResult:
+	return GSPaths.write_json(path, to_dictionary())
 
 
 
@@ -340,7 +340,7 @@ static func _warn_deprecated_env(old: String, gs: String) -> void:
 	if _warned_env.has(old):
 		return
 	_warned_env[old] = true
-	DotLog.warn("gs.config", "environment variable %s is deprecated, set %s instead (the old name still works)" % [old, gs])
+	GSLog.warn("gs.config", "environment variable %s is deprecated, set %s instead (the old name still works)" % [old, gs])
 
 
 ## How many deprecated DOT_ variables have been warned about so far (selftest hook).
@@ -370,7 +370,7 @@ func apply_env(prefix_override: String = "") -> PackedStringArray:
 		return PackedStringArray()
 
 	var applied := apply_dictionary(d, "env", false)
-	DotLog.info(
+	GSLog.info(
 		CHANNEL, "applied environment", {"keys": applied.size()}
 	)
 	return applied
@@ -422,7 +422,7 @@ func apply_cli(prefix_override: String = "") -> PackedStringArray:
 		var key := _match_key(raw_key, keys)
 		if key == "":
 			unknown_keys.append(arg)
-			DotLog.warn(CHANNEL, "unknown command-line key", {"arg": arg})
+			GSLog.warn(CHANNEL, "unknown command-line key", {"arg": arg})
 			continue
 
 		if raw_value == null:
@@ -434,7 +434,7 @@ func apply_cli(prefix_override: String = "") -> PackedStringArray:
 				raw_value = args[i]
 				i += 1
 			else:
-				DotLog.warn(
+				GSLog.warn(
 					CHANNEL, "command-line key has no value", {"arg": arg}
 				)
 				continue
@@ -445,14 +445,14 @@ func apply_cli(prefix_override: String = "") -> PackedStringArray:
 		return PackedStringArray()
 
 	var applied := apply_dictionary(d, "cli", false)
-	DotLog.info(CHANNEL, "applied command line", {"keys": applied.size()})
+	GSLog.info(CHANNEL, "applied command line", {"keys": applied.size()})
 	return applied
 
 
 
 ## Runs every layer in order and validates the result; the one call a host needs at boot.
 ## [param file_path] may be empty to skip the file layer.
-func load_layered(file_path: String = "") -> DotResult:
+func load_layered(file_path: String = "") -> GSResult:
 	unknown_keys = PackedStringArray()
 
 	if file_path != "":
@@ -467,7 +467,7 @@ func load_layered(file_path: String = "") -> DotResult:
 	if not valid.ok:
 		return valid.wrap("Configuration is invalid.")
 
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 
@@ -501,6 +501,6 @@ func describe_lines(redact_sensitive: bool = true) -> PackedStringArray:
 
 
 ## A deep copy, for "revert to the config we booted with".
-func clone() -> DotConfig:
+func clone() -> GSConfig:
 	var c := duplicate(true)
-	return c as DotConfig
+	return c as GSConfig

@@ -1,4 +1,4 @@
-class_name DotWireDoc
+class_name GSWireDoc
 extends RefCounted
 
 ## A JSON document as one network message: the text, deflated, behind both its lengths (`u32` text size, `u32` packed size, then the packed bytes). Games send a map, a course or a stage this way and validate what they decode, so both ends build from the same dictionary.
@@ -22,20 +22,20 @@ static func encode(doc: Dictionary, sort_keys: bool = false) -> PackedByteArray:
 
 
 ## The JSON text [method encode] packed, or a parse failure whose sentence names [param what] ("A map on the wire was empty."). Both lengths are checked first, so a torn or padded body is refused here rather than handed to the decompressor, which prints an engine error for it. [param max_size] bounds the unpacked size (0 is the deflate bound for these bytes).
-static func decode_text(bytes: PackedByteArray, what: String = "document", max_size: int = 0) -> DotResult:
+static func decode_text(bytes: PackedByteArray, what: String = "document", max_size: int = 0) -> GSResult:
 	var subject := "A %s on the wire" % what
 	if bytes.size() < 9:
-		return DotResult.fail(DotError.CODE_PARSE, "%s was empty." % subject)
+		return GSResult.fail(GSError.CODE_PARSE, "%s was empty." % subject)
 	var size := bytes.decode_u32(0)
 	if bytes.decode_u32(4) != bytes.size() - 8:
-		return DotResult.fail(DotError.CODE_PARSE, "%s is not the length it says." % subject)
+		return GSResult.fail(GSError.CODE_PARSE, "%s is not the length it says." % subject)
 	var bound := max_size if max_size > 0 else (bytes.size() - 8) * DEFLATE_RATIO
 	if size <= 0 or size > bound:
-		return DotResult.fail(DotError.CODE_PARSE, "%s says it is %d bytes." % [subject, size])
+		return GSResult.fail(GSError.CODE_PARSE, "%s says it is %d bytes." % [subject, size])
 	var raw := bytes.slice(8).decompress(size, FileAccess.COMPRESSION_DEFLATE)
 	if raw.size() != size:
-		return DotResult.fail(DotError.CODE_PARSE, "%s would not decompress." % subject)
-	return DotResult.success(raw.get_string_from_utf8())
+		return GSResult.fail(GSError.CODE_PARSE, "%s would not decompress." % subject)
+	return GSResult.success(raw.get_string_from_utf8())
 
 
 ## A short fingerprint of a document (keys sorted), for a log line and for two ends to compare.

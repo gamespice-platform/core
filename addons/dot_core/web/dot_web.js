@@ -1,6 +1,6 @@
-/* dot-core's page side of DotWeb. Load before index.js (export-web copies it beside the build).
+/* dot-core's page side of GSWeb. Load before index.js (export-web copies it beside the build).
  * Why a file: the game origin's CSP has no 'unsafe-eval', so JavaScriptBridge.eval throws EvalError.
- * First-party script is allowed, so every browser call DotWeb makes is a named function here,
+ * First-party script is allowed, so every browser call GSWeb makes is a named function here,
  * reached through get_interface("dotWeb"). Do not add a path that evaluates a string. */
 (function () {
   'use strict';
@@ -83,7 +83,7 @@
     }
   };
 
-  /* Whole-body GET for DotWeb.fetch_bytes. The engine's HTTPRequest reads one stream chunk per frame
+  /* Whole-body GET for GSWeb.fetch_bytes. The engine's HTTPRequest reads one stream chunk per frame
    * (~0.4 MB/s at 60 fps); arrayBuffer() lets the browser read at line speed and hands over one buffer. */
   var fetches = {};
   var fetchNext = 1;

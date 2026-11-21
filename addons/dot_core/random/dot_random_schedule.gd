@@ -1,5 +1,5 @@
 @tool
-class_name DotRandomSchedule
+class_name GSRandomSchedule
 extends Resource
 
 ## Random events in ticks, decided by a pure function of the tick.
@@ -26,7 +26,7 @@ extends Resource
 
 ## Whether an event fires on [param tick], given the last one at [param last_tick].
 ## A negative [param last_tick] means nothing has fired yet; the gap is measured from tick zero.
-func fires_at(stream: DotRandomStream, tick: int, last_tick: int) -> bool:
+func fires_at(stream: GSRandomStream, tick: int, last_tick: int) -> bool:
 	if stream == null or mean_interval_ticks <= 0 or rate_scale <= 0.0:
 		return false
 
@@ -66,7 +66,7 @@ func probability_at(since: int) -> float:
 
 ## The next tick at or after [param from] on which this schedule fires, or -1 inside the horizon.
 ## Bounded: a schedule configured never to fire would loop for ever.
-func next_fire(stream: DotRandomStream, from: int, last_tick: int, horizon: int = 100000) -> int:
+func next_fire(stream: GSRandomStream, from: int, last_tick: int, horizon: int = 100000) -> int:
 	for t in range(from, from + maxi(1, horizon)):
 		if fires_at(stream, t, last_tick):
 			return t
@@ -75,7 +75,7 @@ func next_fire(stream: DotRandomStream, from: int, last_tick: int, horizon: int 
 
 ## The measured mean interval over [param samples] events, for tuning and for tests.
 ## Assert the shape of a distribution, not that tick 4,192 fires (that asserts the mixer).
-func measure_mean_interval(stream: DotRandomStream, samples: int = 200) -> float:
+func measure_mean_interval(stream: GSRandomStream, samples: int = 200) -> float:
 	if samples <= 0:
 		return 0.0
 	var last := 0
@@ -92,22 +92,22 @@ func measure_mean_interval(stream: DotRandomStream, samples: int = 200) -> float
 	return float(total) / float(found) if found > 0 else 0.0
 
 
-func validate() -> DotResult:
+func validate() -> GSResult:
 	if mean_interval_ticks < 0:
-		return DotResult.fail(DotError.CODE_INVALID, "mean_interval_ticks may not be negative")
+		return GSResult.fail(GSError.CODE_INVALID, "mean_interval_ticks may not be negative")
 	if max_gap_ticks > 0 and max_gap_ticks <= min_gap_ticks:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"max_gap_ticks is inside min_gap_ticks",
 			"the ceiling would fire on the first tick the floor allows, every time"
 		)
 	if min_gap_ticks > 0 and mean_interval_ticks > 0 and min_gap_ticks >= mean_interval_ticks:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"min_gap_ticks is at or above the mean interval",
 			"every event would land on the first legal tick, which is a metronome"
 		)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 func describe_lines() -> PackedStringArray:

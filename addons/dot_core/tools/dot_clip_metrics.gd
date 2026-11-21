@@ -1,4 +1,4 @@
-class_name DotClipMetrics
+class_name GSClipMetrics
 extends RefCounted
 
 ## Numeric checks on a recorded clip, fed one sample a frame by a capture tool: foot slide,

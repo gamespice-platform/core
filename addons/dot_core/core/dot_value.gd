@@ -1,5 +1,5 @@
 @tool
-class_name DotValue
+class_name GSValue
 extends RefCounted
 
 ## Comparisons that are total: `==` between mismatched Variant types is a runtime ERROR, not false.

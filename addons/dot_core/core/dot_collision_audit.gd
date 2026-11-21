@@ -1,4 +1,4 @@
-class_name DotCollisionAudit
+class_name GSCollisionAudit
 extends RefCounted
 
 ## Lists visible geometry under a node that nothing collides with. Structural: no physics space needed.
@@ -23,15 +23,15 @@ var _shape_bounds: Variant = null
 ## Audit [param root] and everything under it; CODE_INVALID for a null or freed root.
 ## [param anywhere] also accepts a solid body anywhere under [param root] whose shape bounds meet
 ## the node's, for a level keeping drawing and collision in separate subtrees. Lenient by design.
-static func audit(root: Node, anywhere := false) -> DotResult:
+static func audit(root: Node, anywhere := false) -> GSResult:
 	if root == null or not is_instance_valid(root):
-		return DotResult.failure(DotError.make(DotError.CODE_INVALID, "DotCollisionAudit.audit: no root node"))
-	var report := DotCollisionAudit.new()
+		return GSResult.failure(GSError.make(GSError.CODE_INVALID, "GSCollisionAudit.audit: no root node"))
+	var report := GSCollisionAudit.new()
 	if anywhere:
 		report._shape_bounds = []
 		report._collect_bounds(root, root)
 	report._walk(root, root, false)
-	return DotResult.success(report)
+	return GSResult.success(report)
 
 
 ## True when [param node] is opted out directly (not through an ancestor).

@@ -1,7 +1,7 @@
 extends Node
 
-## Exercises DotHttp and the filesystem helpers it leans on, against a real loopback socket, headless; exits non-zero on failure.
-## The server lives here because [method DotHttp.download_to_file]'s resume cases (206, a 200 ignoring Range, 416, a 500 mid-resume) are reachable
+## Exercises GSHttp and the filesystem helpers it leans on, against a real loopback socket, headless; exits non-zero on failure.
+## The server lives here because [method GSHttp.download_to_file]'s resume cases (206, a 200 ignoring Range, 416, a 500 mid-resume) are reachable
 ## only over a socket; [HTTPRequest] has no append mode, so a resume writing only the tail passes any check of the response rather than the bytes.
 
 const PORT_FIRST := 28230
@@ -35,11 +35,11 @@ var _port := 0
 var _mode := "range"
 var _requests: Array[Dictionary] = []
 
-var _http: DotHttp
+var _http: GSHttp
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -54,9 +54,9 @@ func _run() -> void:
 
 	# Every file is written fresh each run: a leftover `replace_absent.bin` made "works when there is
 	# nothing to replace" replace something (docs/testing.md).
-	DotPaths.remove_tree(SCRATCH)
+	GSPaths.remove_tree(SCRATCH)
 
-	_http = DotHttp.new()
+	_http = GSHttp.new()
 	# Retries would turn a deliberate 500 into three of them and hide which
 	# attempt the assertions are about.
 	_http.max_retries = 0
@@ -72,7 +72,7 @@ func _run() -> void:
 	await _test_max_bytes()
 	_test_append_file()
 	_test_replace_file()
-	DotPaths.remove_tree(SCRATCH)
+	GSPaths.remove_tree(SCRATCH)
 
 	print("")
 	print("%d passed, %d failed" % [_passed, _failed])
@@ -104,9 +104,9 @@ func _run() -> void:
 func _test_transfer_defaults() -> void:
 	_entered += 1
 	print("transfer defaults")
-	var h := DotHttp.new()
+	var h := GSHttp.new()
 	_check(h.download_chunk_size >= 1048576, "chunk size defaults to 1 MiB or more", str(h.download_chunk_size))
-	_check(h.download_chunk_size <= DotHttp.MAX_CHUNK_SIZE, "and stays within HTTPRequest's 16 MiB limit")
+	_check(h.download_chunk_size <= GSHttp.MAX_CHUNK_SIZE, "and stays within HTTPRequest's 16 MiB limit")
 	_check(not h.use_threads, "threaded reads are opt-in")
 	add_child(h)
 	var req := h._acquire()
@@ -230,7 +230,7 @@ func _test_range_not_satisfiable() -> void:
 
 	_check(not res.ok, "fails rather than being taken for an empty success")
 	if not res.ok:
-		_check(res.error.code == DotError.CODE_INVALID,
+		_check(res.error.code == GSError.CODE_INVALID,
 			"with a code the caller can branch on", res.code())
 	_check(_read(dest) == BODY, "and leaves the local file alone")
 	_check(not FileAccess.file_exists(dest + ".resume"), "leaving no sibling behind")
@@ -275,14 +275,14 @@ func _test_max_bytes() -> void:
 
 
 func _test_append_file() -> void:
-	_section("DotPaths.append_file")
+	_section("GSPaths.append_file")
 
 	var dest := _scratch("append.bin")
 	var src := _scratch("append.src")
 
 	_write(dest, "AAAA")
 	_write(src, "BBBB")
-	var res := DotPaths.append_file(dest, src)
+	var res := GSPaths.append_file(dest, src)
 	_check(res.ok and _read(dest) == "AAAABBBB", "appends at the end by default", _read(dest))
 
 	# A partial longer than the offset that was requested. Without the truncate
@@ -290,34 +290,34 @@ func _test_append_file() -> void:
 	# splice of two attempts.
 	_write(dest, "AAAAXXXXXXXX")
 	_write(src, "BBBB")
-	res = DotPaths.append_file(dest, src, 4)
+	res = GSPaths.append_file(dest, src, 4)
 	_check(res.ok and _read(dest) == "AAAABBBB",
 		"truncates to the offset first, so stale bytes past the join cannot survive",
 		_read(dest))
 
 	_write(dest, "AAAA")
-	res = DotPaths.append_file(dest, src, 99)
+	res = GSPaths.append_file(dest, src, 99)
 	_check(not res.ok, "refuses an offset past the end rather than punching a hole")
 	if not res.ok:
-		_check(res.error.code == DotError.CODE_INVALID, "with CODE_INVALID", res.code())
+		_check(res.error.code == GSError.CODE_INVALID, "with CODE_INVALID", res.code())
 	_check(_read(dest) == "AAAA", "and leaves the destination untouched when it refuses")
 
-	res = DotPaths.append_file(_scratch("nope.bin"), _scratch("missing.src"))
+	res = GSPaths.append_file(_scratch("nope.bin"), _scratch("missing.src"))
 	_check(not res.ok, "reports a missing source instead of creating an empty file")
 
 	# Bigger than one chunk, because the loop is the part that can drop bytes.
 	var big := "z".repeat(300000)
 	_write(dest, "AAAA")
 	_write(src, big)
-	res = DotPaths.append_file(dest, src, 4, 4096)
-	_check(res.ok and DotPaths.file_size(dest) == 4 + big.length(),
+	res = GSPaths.append_file(dest, src, 4, 4096)
+	_check(res.ok and GSPaths.file_size(dest) == 4 + big.length(),
 		"streams a source larger than its chunk without losing any of it",
-		"%d bytes" % DotPaths.file_size(dest))
+		"%d bytes" % GSPaths.file_size(dest))
 	_done()
 
 
 func _test_replace_file() -> void:
-	_section("DotPaths.replace_file")
+	_section("GSPaths.replace_file")
 
 	var dest := _scratch("replace.bin")
 	var src := _scratch("replace.src")
@@ -325,7 +325,7 @@ func _test_replace_file() -> void:
 	_write(dest, "old")
 	_write(src, "new")
 
-	var res := DotPaths.replace_file(dest, src)
+	var res := GSPaths.replace_file(dest, src)
 	_check(res.ok, "succeeds over an existing destination",
 		"" if res.ok else res.error.message)
 	_check(_read(dest) == "new", "with the source's contents", _read(dest))
@@ -334,7 +334,7 @@ func _test_replace_file() -> void:
 	_write(src, "fresh")
 	var absent := _scratch("replace_absent.bin")
 	_check(not FileAccess.file_exists(absent), "there really is nothing there to replace")
-	res = DotPaths.replace_file(absent, src)
+	res = GSPaths.replace_file(absent, src)
 	_check(res.ok and _read(absent) == "fresh", "and works when there is nothing to replace")
 	_done()
 
@@ -422,7 +422,7 @@ func _answer(c: StreamPeerTCP, raw: String) -> void:
 # Scratch files
 
 func _scratch(name: String) -> String:
-	DotPaths.ensure_dir(SCRATCH)
+	GSPaths.ensure_dir(SCRATCH)
 	return SCRATCH.path_join(name)
 
 

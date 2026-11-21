@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotJob], [DotScheduler] and [DotHashJob] across threads, guarding a server that crashed mid map change: a second thread inside the same
+## Exercises [GSJob], [GSScheduler] and [GSHashJob] across threads, guarding a server that crashed mid map change: a second thread inside the same
 ## hash job closed its file under `eof_reached`. The probe job sleeps inside its hooks so an overlap a fast machine would hide lands every run.
 
 const SECTIONS := 5
@@ -14,7 +14,7 @@ var _section_count := 0
 
 
 ## A job that records whether two threads were ever inside it at once.
-class ProbeJob extends DotJob:
+class ProbeJob extends GSJob:
 	var setup_usec := 2000
 	var step_usec := 200
 	var steps_to_finish := 40
@@ -57,7 +57,7 @@ class ProbeJob extends DotJob:
 		_m.unlock()
 		_out()
 		if done:
-			_finish(DotResult.success(steps))
+			_finish(GSResult.success(steps))
 			return false
 		return true
 
@@ -69,7 +69,7 @@ class ProbeJob extends DotJob:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -109,8 +109,8 @@ func _test_closed_file() -> void:
 
 	# Before the fix this section is the crash itself: `eof_reached()` on a closed file
 	# dereferences null inside the engine, and the run ends with signal 11.
-	var path := _write_file("closed.bin", DotHash.CHUNK_SIZE * 3 + 7)
-	var job := DotHashJob.new(path)
+	var path := _write_file("closed.bin", GSHash.CHUNK_SIZE * 3 + 7)
+	var job := GSHashJob.new(path)
 
 	_check(job.step(), "the first step opens the file and leaves work to do")
 
@@ -121,7 +121,7 @@ func _test_closed_file() -> void:
 	_check(job.result != null and not job.result.ok, "as a failure")
 	_check(
 		job.result != null and not job.result.ok
-			and job.result.error.code == DotError.CODE_IO,
+			and job.result.error.code == GSError.CODE_IO,
 		"an IO failure, which a caller already handles"
 	)
 
@@ -153,7 +153,7 @@ func _test_two_threads_one_job() -> void:
 	_check(job.setups == 1, "it was set up once (%d)" % job.setups)
 	_check(job.torn_inside == 0, "it was never torn down under a step (%d)" % job.torn_inside)
 	_check(
-		job.state == DotJob.State.DONE and job.result != null and job.result.ok,
+		job.state == GSJob.State.DONE and job.result != null and job.result.ok,
 		"and it finished"
 	)
 
@@ -163,9 +163,9 @@ func _test_cancel() -> void:
 
 	var queued := ProbeJob.new()
 	queued.cancel()
-	_check(queued.state == DotJob.State.CANCELLED, "a job that never started settles at once")
+	_check(queued.state == GSJob.State.CANCELLED, "a job that never started settles at once")
 	_check(
-		queued.result != null and queued.result.error.code == DotError.CODE_CANCELLED,
+		queued.result != null and queued.result.error.code == GSError.CODE_CANCELLED,
 		"with a cancelled result"
 	)
 	_check(queued.setups == 0, "and was never set up")
@@ -191,27 +191,27 @@ func _test_cancel() -> void:
 	t.wait_to_finish()
 
 	_check(took_ms < 200.0, "cancel() did not wait for the step in progress (%.1f ms)" % took_ms)
-	_check(running.state == DotJob.State.CANCELLED, "the worker settled it at its next step")
+	_check(running.state == GSJob.State.CANCELLED, "the worker settled it at its next step")
 	_check(running.torn_inside == 0, "and tore it down outside any step")
 
 
 func _test_submitted_twice() -> void:
 	_section("A job submitted twice runs once")
 
-	var scheduler := DotScheduler.new()
+	var scheduler := GSScheduler.new()
 	scheduler.thread_count = 4
 	add_child(scheduler)
 
 	var job := ProbeJob.new()
 	var finished_for_it := [0]
-	scheduler.job_finished.connect(func(j: DotJob) -> void:
+	scheduler.job_finished.connect(func(j: GSJob) -> void:
 		if j == job:
 			finished_for_it[0] += 1
 	)
 
 	scheduler.submit(job)
 	scheduler.submit(job)
-	var res: DotResult = await scheduler.run(job)
+	var res: GSResult = await scheduler.run(job)
 
 	# One more frame, so a second completion (the bug) has its chance to be reported.
 	await get_tree().process_frame
@@ -231,7 +231,7 @@ func _test_many_hash_jobs() -> void:
 
 	# The server's verify pass: every stored object, two acquisitions at once, several hashing the same object,
 	# cancels right after submission (the race that let the main thread close a file a worker had just opened).
-	var scheduler := DotScheduler.new()
+	var scheduler := GSScheduler.new()
 	scheduler.thread_count = 4
 	add_child(scheduler)
 
@@ -240,13 +240,13 @@ func _test_many_hash_jobs() -> void:
 	for i in 6:
 		var p := _write_file("many_%d.bin" % i, 1 + i * 40_000)
 		paths.append(p)
-		hashes.append(str(DotHash.sha256_file(p).value))
+		hashes.append(str(GSHash.sha256_file(p).value))
 
-	var jobs: Array[DotHashJob] = []
+	var jobs: Array[GSHashJob] = []
 	var cancelled := 0
 	for round in 60:
 		for i in paths.size():
-			var job := DotHashJob.new(paths[i], hashes[i])
+			var job := GSHashJob.new(paths[i], hashes[i])
 			jobs.append(job)
 			scheduler.submit(job)
 			if (round + i) % 3 == 0:
@@ -273,7 +273,7 @@ func _test_many_hash_jobs() -> void:
 		settled += 1
 		if job.result.ok:
 			good += 1
-		elif job.result.error.code == DotError.CODE_CANCELLED:
+		elif job.result.error.code == GSError.CODE_CANCELLED:
 			cancels += 1
 		else:
 			other += 1
@@ -296,7 +296,7 @@ func _write_file(file_name: String, size: int) -> String:
 	var f := FileAccess.open(path, FileAccess.WRITE)
 	f.store_buffer(bytes)
 	f.close()
-	DotWeb.sync_filesystem()
+	GSWeb.sync_filesystem()
 	return path
 
 

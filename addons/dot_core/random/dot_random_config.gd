@@ -1,9 +1,9 @@
 @tool
-class_name DotRandomConfig
-extends DotConfig
+class_name GSRandomConfig
+extends GSConfig
 
 ## Where a session's randomness comes from, layered like every configuration here. GameSpice UI
-## builds a settings panel from any [DotConfig], so nothing here knows a [Control].
+## builds a settings panel from any [GSConfig], so nothing here knows a [Control].
 
 ## The master seed; zero means "pick one at boot and announce it". Not a secret: a seed is
 ## meant to be shared, and a client can compute every number a server will, so hide
@@ -29,5 +29,5 @@ func cli_prefix() -> String:
 	return "--random-"
 
 
-func validate() -> DotResult:
-	return DotResult.success(null)
+func validate() -> GSResult:
+	return GSResult.success(null)

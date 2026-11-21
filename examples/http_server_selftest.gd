@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises DotHttpServer against real loopback sockets: parsing, routing, limits, traversal, JSON, bad input, DotHttp and TLS.
+## Exercises GSHttpServer against real loopback sockets: parsing, routing, limits, traversal, JSON, bad input, GSHttp and TLS.
 
 const SECTIONS := 8
 const CHECKS := 63
@@ -10,27 +10,27 @@ var _passed := 0
 var _failed := 0
 var _entered := 0
 var _completed := 0
-var _srv: DotHttpServer
+var _srv: GSHttpServer
 var _live := true
-var _active: DotHttpServer
+var _active: GSHttpServer
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.FATAL)
+	GSLog.set_level(GSLog.Level.FATAL)
 	print("dot-core HTTP server self-test")
-	DotPaths.remove_tree(SCRATCH)
-	DotPaths.ensure_dir(SCRATCH + "/www/sub")
+	GSPaths.remove_tree(SCRATCH)
+	GSPaths.ensure_dir(SCRATCH + "/www/sub")
 	_write(SCRATCH + "/www/index.html", "<h1>hi</h1>")
 	_write(SCRATCH + "/www/sub/a.txt", "alpha")
 	_write(SCRATCH + "/www/.secret", "hidden")
 	_write(SCRATCH + "/outside.txt", "outside")
-	_srv = DotHttpServer.new()
-	_srv.route("GET", "/hello", func(_r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.text(200, "world"))
-	_srv.route("POST", "/echo", func(r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.json({"len": r.body.size(), "q": r.query, "ua": r.header("User-Agent")}))
-	_srv.route("GET", "/boom", func(_r: DotHttpRequest) -> DotHttpResponse: return null)
-	_srv.route("GET", "/token", func(r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.text(200, r.bearer_token()))
-	_srv.route_prefix("GET", "/files/x", func(r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.text(200, "x:" + r.rest))
-	_srv.route_prefix("GET", "/files", func(r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.text(200, "f:" + r.rest))
+	_srv = GSHttpServer.new()
+	_srv.route("GET", "/hello", func(_r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.text(200, "world"))
+	_srv.route("POST", "/echo", func(r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.json({"len": r.body.size(), "q": r.query, "ua": r.header("User-Agent")}))
+	_srv.route("GET", "/boom", func(_r: GSHttpRequest) -> GSHttpResponse: return null)
+	_srv.route("GET", "/token", func(r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.text(200, r.bearer_token()))
+	_srv.route_prefix("GET", "/files/x", func(r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.text(200, "x:" + r.rest))
+	_srv.route_prefix("GET", "/files", func(r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.text(200, "f:" + r.rest))
 	_srv.serve_dir("/static", SCRATCH + "/www")
 	var res := _srv.start(0)
 	if not res.ok:
@@ -54,12 +54,12 @@ func _run() -> void:
 	_section("json and response"); _test_json(); _done()
 	_section("bad input"); _test_bad_input(); _done()
 	_live = true
-	_section("DotHttp client"); await _test_client(); _done()
+	_section("GSHttp client"); await _test_client(); _done()
 	_section("tls"); await _test_tls(); _done()
 	_live = false
 	_srv.stop()
 	_srv = null
-	DotPaths.remove_tree(SCRATCH)
+	GSPaths.remove_tree(SCRATCH)
 	print("")
 	print("%d passed, %d failed, %d of %d sections ran to their last line" % [_passed, _failed, _completed, _entered])
 	if _entered != SECTIONS or _completed != _entered or _passed + _failed != CHECKS:
@@ -131,19 +131,19 @@ func _body(resp: String) -> String:
 
 
 func _test_parsing() -> void:
-	var p := DotHttpServer.parse_head("GET /a%20b/c?x=1&y=hello+w%21&flag HTTP/1.1\r\nHost: h\r\nX-Multi: a\r\nx-multi: b\r\nAuthorization: Bearer tok")
+	var p := GSHttpServer.parse_head("GET /a%20b/c?x=1&y=hello+w%21&flag HTTP/1.1\r\nHost: h\r\nX-Multi: a\r\nx-multi: b\r\nAuthorization: Bearer tok")
 	_check(bool(p["ok"]) and p["method"] == "GET", "request line parses")
 	_check(p["path"] == "/a b/c", "path is percent-decoded")
 	_check(p["query"] == {"x": "1", "y": "hello w!", "flag": ""}, "query decoded: %s" % str(p["query"]))
 	_check(p["headers"]["host"] == "h" and p["headers"]["x-multi"] == "a, b", "headers lower-cased and joined")
-	_check(DotHttpServer.parse_head("GET / HTTP/1.0")["ok"] == true, "HTTP/1.0 accepted")
-	_check(int(DotHttpServer.parse_head("GET / HTTP/2.0")["status"]) == 505, "HTTP/2.0 is 505")
-	_check(int(DotHttpServer.parse_head("GET /" + char(1) + " HTTP/1.1")["status"]) == 400, "control char is 400")
-	_check(int(DotHttpServer.parse_head("GET /%00 HTTP/1.1")["status"]) == 400, "encoded NUL is 400")
-	_check(int(DotHttpServer.parse_head("get / HTTP/1.1")["status"]) == 400, "lower-case method is 400")
-	_check(int(DotHttpServer.parse_head("GET http://h/ HTTP/1.1")["status"]) == 400, "absolute-form is 400")
-	_check(int(DotHttpServer.parse_head("GET / HTTP/1.1\r\nBad Name: x")["status"]) == 400, "space in header name is 400")
-	_check(int(DotHttpServer.parse_head("GET / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 2")["status"]) == 400, "conflicting lengths are 400")
+	_check(GSHttpServer.parse_head("GET / HTTP/1.0")["ok"] == true, "HTTP/1.0 accepted")
+	_check(int(GSHttpServer.parse_head("GET / HTTP/2.0")["status"]) == 505, "HTTP/2.0 is 505")
+	_check(int(GSHttpServer.parse_head("GET /" + char(1) + " HTTP/1.1")["status"]) == 400, "control char is 400")
+	_check(int(GSHttpServer.parse_head("GET /%00 HTTP/1.1")["status"]) == 400, "encoded NUL is 400")
+	_check(int(GSHttpServer.parse_head("get / HTTP/1.1")["status"]) == 400, "lower-case method is 400")
+	_check(int(GSHttpServer.parse_head("GET http://h/ HTTP/1.1")["status"]) == 400, "absolute-form is 400")
+	_check(int(GSHttpServer.parse_head("GET / HTTP/1.1\r\nBad Name: x")["status"]) == 400, "space in header name is 400")
+	_check(int(GSHttpServer.parse_head("GET / HTTP/1.1\r\nContent-Length: 1\r\nContent-Length: 2")["status"]) == 400, "conflicting lengths are 400")
 
 
 func _test_routing() -> void:
@@ -192,8 +192,8 @@ func _test_traversal() -> void:
 	_check(_status(_fetch("/static/..%5coutside.txt")) == 403, "backslash traversal is 403")
 	_check(_status(_fetch("/static/.secret")) == 404, "dotfile is hidden")
 	_check(_status(_fetch("/static/missing.txt")) == 404, "missing file is 404")
-	_check(DotHttpServer.static_response(SCRATCH + "/www", "/etc/passwd").status == 404, "absolute rel stays under dir")
-	_check(DotHttpServer.static_response(SCRATCH + "/www", "C:/x").status == 403, "drive path is 403")
+	_check(GSHttpServer.static_response(SCRATCH + "/www", "/etc/passwd").status == 404, "absolute rel stays under dir")
+	_check(GSHttpServer.static_response(SCRATCH + "/www", "C:/x").status == 403, "drive path is 403")
 	_check(_fetch("/static/sub/a.txt").contains("text/plain"), "content type by extension")
 
 
@@ -202,13 +202,13 @@ func _test_json() -> void:
 	var j: Variant = JSON.parse_string(_body(r))
 	_check(_status(r) == 200 and r.contains("application/json"), "json response header")
 	_check(j is Dictionary and int(j["len"]) == 7 and j["q"] == {"a": "1"} and j["ua"] == "t", "json body round trips")
-	var req := DotHttpRequest.new()
+	var req := GSHttpRequest.new()
 	req.body = "{\"k\": [1, 2]}".to_utf8_buffer()
 	var jr := req.json_body()
 	_check(jr.ok and jr.value["k"].size() == 2, "request json_body")
 	req.body = "{nope".to_utf8_buffer()
 	_check(not req.json_body().ok, "bad json is a failed result")
-	var resp := DotHttpResponse.json({"a": 1}, 201)
+	var resp := GSHttpResponse.json({"a": 1}, 201)
 	resp.headers["X-Evil"] = "a\r\nInjected: 1"
 	var wire := resp.to_wire().get_string_from_utf8()
 	_check(wire.begins_with("HTTP/1.1 201 ") and not wire.contains("\r\nInjected:"), "header injection stripped")
@@ -225,23 +225,23 @@ func _test_bad_input() -> void:
 	var before := _srv.describe()["connections"] as int
 	_raw("GET / HT".to_utf8_buffer(), 0.1)
 	_check(_srv.describe_lines().size() == 1 and before >= 0, "describe works")
-	var s2 := DotHttpServer.new()
-	_check(s2.start(0, "127.0.0.1", "/nonexistent.crt", "").error.code == DotError.CODE_INVALID, "cert without key refused")
-	_check(s2.start(0, "127.0.0.1", "/nonexistent.crt", "/nonexistent.key").error.code == DotError.CODE_IO, "missing cert refused")
-	_check(not DotHttpServer.read_secret_file("/nonexistent.token").ok, "missing secret file fails")
+	var s2 := GSHttpServer.new()
+	_check(s2.start(0, "127.0.0.1", "/nonexistent.crt", "").error.code == GSError.CODE_INVALID, "cert without key refused")
+	_check(s2.start(0, "127.0.0.1", "/nonexistent.crt", "/nonexistent.key").error.code == GSError.CODE_IO, "missing cert refused")
+	_check(not GSHttpServer.read_secret_file("/nonexistent.token").ok, "missing secret file fails")
 
 
 func _test_client() -> void:
-	var http := DotHttp.new()
+	var http := GSHttp.new()
 	http.max_retries = 0
 	http.base_url = "http://127.0.0.1:%d" % _srv.port()
 	add_child(http)
-	var res: DotResult = await http.get_bytes("/hello")
-	_check(res.ok and (res.value as PackedByteArray).get_string_from_utf8() == "world", "DotHttp GET against the server")
-	var res2: DotResult = await http.post_json("/echo", {"a": 1})
-	_check(res2.ok, "DotHttp POST json")
-	var res3: DotResult = await http.get_json("/nope")
-	_check(not res3.ok, "DotHttp sees a 404 as failure")
+	var res: GSResult = await http.get_bytes("/hello")
+	_check(res.ok and (res.value as PackedByteArray).get_string_from_utf8() == "world", "GSHttp GET against the server")
+	var res2: GSResult = await http.post_json("/echo", {"a": 1})
+	_check(res2.ok, "GSHttp POST json")
+	var res3: GSResult = await http.get_json("/nope")
+	_check(not res3.ok, "GSHttp sees a 404 as failure")
 	http.queue_free()
 
 
@@ -251,8 +251,8 @@ func _test_tls() -> void:
 	var cert := crypto.generate_self_signed_certificate(key, "CN=localhost")
 	key.save(SCRATCH + "/k.key")
 	cert.save(SCRATCH + "/c.crt")
-	var s := DotHttpServer.new()
-	s.route("GET", "/t", func(_r: DotHttpRequest) -> DotHttpResponse: return DotHttpResponse.text(200, "secure"))
+	var s := GSHttpServer.new()
+	s.route("GET", "/t", func(_r: GSHttpRequest) -> GSHttpResponse: return GSHttpResponse.text(200, "secure"))
 	var started := s.start(0, "127.0.0.1", SCRATCH + "/c.crt", SCRATCH + "/k.key")
 	_check(started.ok and s.describe()["tls"] == true, "TLS server starts from paths")
 	if not started.ok:

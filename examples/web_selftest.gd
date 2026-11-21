@@ -1,5 +1,5 @@
 extends Node
-## DotWeb's filesystem sync off the web: callable unguarded, counts no failures, does not error.
+## GSWeb's filesystem sync off the web: callable unguarded, counts no failures, does not error.
 ## The browser half (a failed IndexedDB save counted, logged and retried) is seen with tools/idb_probe.sh (a real Chromium: user:// files kept after a tab closed right after a write burst).
 ## Run: godot --headless --path . res://examples/web_selftest.tscn
 
@@ -10,29 +10,29 @@ var _failed := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
-	_check(not DotWeb.has_new_sync_failures(0, 0), "no failures is nothing new")
-	_check(DotWeb.has_new_sync_failures(2, 1), "a higher count is new")
-	_check(not DotWeb.has_new_sync_failures(1, 1), "the same count is not reported twice")
+	GSLog.set_level(GSLog.Level.ERROR)
+	_check(not GSWeb.has_new_sync_failures(0, 0), "no failures is nothing new")
+	_check(GSWeb.has_new_sync_failures(2, 1), "a higher count is new")
+	_check(not GSWeb.has_new_sync_failures(1, 1), "the same count is not reported twice")
 	# sync_failures() once called int() on the null eval returns off-web and errored.
-	_check(DotWeb.sync_failures() == 0, "a desktop build has counted no failed saves")
-	DotWeb.sync_filesystem()
+	_check(GSWeb.sync_failures() == 0, "a desktop build has counted no failed saves")
+	GSWeb.sync_filesystem()
 	_check(true, "sync_filesystem is a no-op off-web")
-	var flushed := await DotWeb.flush_filesystem(get_tree(), 2, 0.05)
+	var flushed := await GSWeb.flush_filesystem(get_tree(), 2, 0.05)
 	_check(flushed.ok, "flush_filesystem succeeds off-web")
-	var none := await DotWeb.flush_filesystem(null)
+	var none := await GSWeb.flush_filesystem(null)
 	_check(none.ok, "and without a tree")
-	_check(DotWeb.page() == null, "page() is null off-web")
-	_check(not DotWeb.lock_keyboard().ok, "lock_keyboard reports no page off-web")
-	_check(not DotWeb.post_to_parent({"type": "x"}).ok, "post_to_parent reports no page off-web")
-	_check(not DotWeb.download_text("a", "a.txt").ok, "download_text reports no page off-web")
-	_check(not DotWeb.set_tab_guard_armed(true).ok, "set_tab_guard_armed reports no page off-web")
-	_check(not DotWeb.has_tab_guard() and not DotWeb.is_metered(), "no tab guard and not metered off-web")
-	DotWeb.publish("k", "v")
-	DotWeb.reload_page()
+	_check(GSWeb.page() == null, "page() is null off-web")
+	_check(not GSWeb.lock_keyboard().ok, "lock_keyboard reports no page off-web")
+	_check(not GSWeb.post_to_parent({"type": "x"}).ok, "post_to_parent reports no page off-web")
+	_check(not GSWeb.download_text("a", "a.txt").ok, "download_text reports no page off-web")
+	_check(not GSWeb.set_tab_guard_armed(true).ok, "set_tab_guard_armed reports no page off-web")
+	_check(not GSWeb.has_tab_guard() and not GSWeb.is_metered(), "no tab guard and not metered off-web")
+	GSWeb.publish("k", "v")
+	GSWeb.reload_page()
 	_check(true, "publish and reload_page are no-ops off-web")
-	_check(DotWeb.query_param_from("?a=1&b=two", "b") == "two" and DotWeb.query_param_from("", "b") == "", "query_param_from parses a search string")
-	_check(DotWeb.query_param("press") == "" and DotWeb.pathname() == "", "page queries are empty off-web")
+	_check(GSWeb.query_param_from("?a=1&b=two", "b") == "two" and GSWeb.query_param_from("", "b") == "", "query_param_from parses a search string")
+	_check(GSWeb.query_param("press") == "" and GSWeb.pathname() == "", "page queries are empty off-web")
 	var js := FileAccess.get_file_as_string("res://addons/dot_core/web/dot_web.js")
 	_check(not js.is_empty() and not js.contains("eval(") and not js.contains("new Function("), "dot_web.js evaluates no string")
 	print("%d passed, %d failed" % [_passed, _failed])

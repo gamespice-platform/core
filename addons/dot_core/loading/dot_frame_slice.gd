@@ -1,4 +1,4 @@
-class_name DotFrameSlice
+class_name GSFrameSlice
 extends RefCounted
 
 ## A time budget for a long synchronous build behind a loading cover: ask [method due] in the loop and [code]await pause()[/code] when it is true, so the cover keeps animating and the window is not "not responding".

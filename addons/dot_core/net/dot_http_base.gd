@@ -1,7 +1,7 @@
 @tool
 extends Node
 
-## Settings, header building and the HTTPRequest pool behind [DotHttp]; use [DotHttp].
+## Settings, header building and the HTTPRequest pool behind [GSHttp]; use [GSHttp].
 
 
 ## Concurrent [HTTPRequest] children kept alive.
@@ -50,11 +50,11 @@ const MAX_POOL := 16
 ## HTTPRequest reads one chunk per frame without threads, so this is the per-frame ceiling (64 KiB gave ~190 KiB/s). Default from [method default_chunk_size].
 @export var download_chunk_size: int = default_chunk_size()
 
-## Read downloads on a worker thread. Off by default, ignored without [method DotPlatform.has_threads].
+## Read downloads on a worker thread. Off by default, ignored without [method GSPlatform.has_threads].
 ## Default from [method default_use_threads].
 @export var use_threads: bool = default_use_threads()
 
-## On web, downloads held in memory are read whole by the browser ([method DotWeb.fetch_bytes]) instead of [HTTPRequest].
+## On web, downloads held in memory are read whole by the browser ([method GSWeb.fetch_bytes]) instead of [HTTPRequest].
 ## HTTPRequest reads one stream chunk per frame there: an 8 MiB bundle took 20 s against 3.5 s with curl.
 @export var web_whole_body_fetch: bool = true
 
@@ -80,7 +80,7 @@ static func _setting(arg: String, env: String, project: String, fallback: Varian
 			return ""
 		if a.begins_with("--" + arg + "="):
 			return a.substr(arg.length() + 3)
-	var e := DotConfig.gs_env(env)
+	var e := GSConfig.gs_env(env)
 	if e != "":
 		return e
 	return ProjectSettings.get_setting(project, fallback)
@@ -149,26 +149,26 @@ func _parse_headers(raw: PackedStringArray) -> Dictionary:
 	return out
 
 
-func _parse_json(response: Variant) -> DotResult:
+func _parse_json(response: Variant) -> GSResult:
 	var r: Dictionary = response
 	var text: String = r["body_text"]
 
 	if text.strip_edges() == "":
-		return DotResult.success({})
+		return GSResult.success({})
 
 	var json := JSON.new()
 	var err := json.parse(text)
 	if err != OK:
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"The server sent malformed JSON.",
 			"line %d: %s" % [json.get_error_line(), json.get_error_message()]
 		)
 
-	return DotResult.success(json.data)
+	return GSResult.success(json.data)
 
 
-func _backoff_delay(attempt: int, err: DotError) -> float:
+func _backoff_delay(attempt: int, err: GSError) -> float:
 	# An explicit Retry-After beats our guess: the server knows its own limits
 	# and ignoring it is how a client gets banned rather than throttled.
 	if err != null and err.retry_after > 0.0:
@@ -226,7 +226,7 @@ func _acquire() -> HTTPRequest:
 	# use_threads must stay false on single-threaded web builds; setting it
 	# there is not an error, it simply never takes effect and hides the reason
 	# requests still block.
-	req.use_threads = use_threads and DotPlatform.has_threads()
+	req.use_threads = use_threads and GSPlatform.has_threads()
 
 	add_child(req)
 	_pool.append(req)

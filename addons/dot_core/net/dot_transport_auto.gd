@@ -1,6 +1,6 @@
 @tool
-class_name DotTransportAuto
-extends DotTransport
+class_name GSTransportAuto
+extends GSTransport
 
 ## Picks a transport from what the build can do and who needs to connect, and logs which and
 ## why. A browser, [member require_web_clients] or no UDP gives WebSocket; otherwise ENet.
@@ -13,12 +13,12 @@ extends DotTransport
 @export var require_web_clients: bool = true
 
 ## Sub-transport used when WebSocket is chosen. Created with defaults if unset.
-@export var websocket: DotTransportWebSocket = null
+@export var websocket: GSTransportWebSocket = null
 
 ## Sub-transport used when ENet is chosen. Created with defaults if unset.
-@export var enet: DotTransportENet = null
+@export var enet: GSTransportENet = null
 
-var _chosen: DotTransport = null
+var _chosen: GSTransport = null
 var _reason: String = ""
 
 
@@ -28,17 +28,17 @@ func _transport_name() -> String:
 
 
 ## The transport this would use, creating it if needed.
-func _resolve() -> DotTransport:
+func _resolve() -> GSTransport:
 	if _chosen != null:
 		return _chosen
 
-	if DotPlatform.is_web():
+	if GSPlatform.is_web():
 		_reason = "running in a browser"
 		_chosen = _websocket()
 	elif require_web_clients:
 		_reason = "require_web_clients is set"
 		_chosen = _websocket()
-	elif not DotPlatform.has_udp():
+	elif not GSPlatform.has_udp():
 		_reason = "no UDP on this platform"
 		_chosen = _websocket()
 	else:
@@ -52,7 +52,7 @@ func _resolve() -> DotTransport:
 	_chosen.out_bandwidth = out_bandwidth
 	_chosen.connect_timeout_sec = connect_timeout_sec
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"selected transport",
 		{"transport": _chosen._transport_name(), "reason": _reason}
@@ -61,15 +61,15 @@ func _resolve() -> DotTransport:
 	return _chosen
 
 
-func _websocket() -> DotTransportWebSocket:
+func _websocket() -> GSTransportWebSocket:
 	if websocket == null:
-		websocket = DotTransportWebSocket.new()
+		websocket = GSTransportWebSocket.new()
 	return websocket
 
 
-func _enet() -> DotTransportENet:
+func _enet() -> GSTransportENet:
 	if enet == null:
-		enet = DotTransportENet.new()
+		enet = GSTransportENet.new()
 	return enet
 
 
@@ -87,15 +87,15 @@ func scheme() -> String:
 	return _resolve().scheme()
 
 
-func _is_available() -> DotResult:
+func _is_available() -> GSResult:
 	return _resolve()._is_available()
 
 
-func _create_server(port: int, bind_address: String) -> DotResult:
+func _create_server(port: int, bind_address: String) -> GSResult:
 	return _resolve()._create_server(port, bind_address)
 
 
-func _create_client(address: String, port: int) -> DotResult:
+func _create_client(address: String, port: int) -> GSResult:
 	return _resolve()._create_client(address, port)
 
 

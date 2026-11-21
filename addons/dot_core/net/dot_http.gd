@@ -1,5 +1,5 @@
 @tool
-class_name DotHttp
+class_name GSHttp
 extends "res://addons/dot_core/net/dot_http_base.gd"
 
 ## An HTTP client that works identically on desktop, mobile and the browser: [HTTPRequest], not [HTTPClient] (absent on web).
@@ -10,7 +10,7 @@ const CHANNEL := "http"
 
 
 ## GET, parsing the response as JSON.
-func get_json(path: String, headers: Dictionary = {}) -> DotResult:
+func get_json(path: String, headers: Dictionary = {}) -> GSResult:
 	var res := await request(HTTPClient.METHOD_GET, path, PackedByteArray(), headers)
 	if not res.ok:
 		return res
@@ -22,7 +22,7 @@ func post_json(
 	path: String,
 	body: Variant,
 	headers: Dictionary = {}
-) -> DotResult:
+) -> GSResult:
 	var merged := headers.duplicate()
 	merged["Content-Type"] = "application/json"
 
@@ -41,7 +41,7 @@ func put_json(
 	path: String,
 	body: Variant,
 	headers: Dictionary = {}
-) -> DotResult:
+) -> GSResult:
 	var merged := headers.duplicate()
 	merged["Content-Type"] = "application/json"
 
@@ -57,12 +57,12 @@ func put_json(
 
 
 ## GET raw bytes. [param max_bytes] > 0 refuses a longer body (as does [member max_response_bytes]).
-func get_bytes(path: String, headers: Dictionary = {}, max_bytes: int = 0) -> DotResult:
+func get_bytes(path: String, headers: Dictionary = {}, max_bytes: int = 0) -> GSResult:
 	var res := await _capped(max_bytes, HTTPClient.METHOD_GET, path, PackedByteArray(), headers, true)
 	if not res.ok:
 		return res
 	var response: Dictionary = res.value
-	return DotResult.success(response["body"])
+	return GSResult.success(response["body"])
 
 
 ## Performs a request with retries. The value is [code]{status, headers, body, body_text,
@@ -73,12 +73,12 @@ func request(
 	body: PackedByteArray = PackedByteArray(),
 	headers: Dictionary = {},
 	decode_text: bool = true
-) -> DotResult:
+) -> GSResult:
 	return await _request(method, path, body, headers, decode_text, 0)
 
 
 ## [method request] when uncapped, so a subclass overriding it still sees every call it saw before.
-func _capped(max_bytes: int, method: int, path: String, body: PackedByteArray, headers: Dictionary, decode_text: bool) -> DotResult:
+func _capped(max_bytes: int, method: int, path: String, body: PackedByteArray, headers: Dictionary, decode_text: bool) -> GSResult:
 	if max_bytes <= 0:
 		return await request(method, path, body, headers, decode_text)
 	return await _request(method, path, body, headers, decode_text, max_bytes)
@@ -92,12 +92,12 @@ func _request(
 	decode_text: bool,
 	max_bytes: int,
 	whole_body: bool = false
-) -> DotResult:
+) -> GSResult:
 	var url := resolve_url(path)
 	var header_list := _build_headers(headers)
 
 	var attempt := 0
-	var last: DotResult = null
+	var last: GSResult = null
 
 	while attempt <= max_retries:
 		attempt += 1
@@ -110,13 +110,13 @@ func _request(
 		if last.ok:
 			var v: Dictionary = last.value
 			v["attempts"] = attempt
-			return DotResult.success(v)
+			return GSResult.success(v)
 
 		if attempt > max_retries or not last.is_retryable():
 			break
 
 		var delay := _backoff_delay(attempt, last.error)
-		DotLog.debug(
+		GSLog.debug(
 			CHANNEL,
 			"retrying",
 			{
@@ -140,11 +140,11 @@ func _attempt(
 	header_list: PackedStringArray,
 	decode_text: bool = true,
 	max_bytes: int = 0
-) -> DotResult:
+) -> GSResult:
 	var req := _acquire()
 	if req == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"Too many concurrent HTTP requests.",
 			"pool limit is %d" % MAX_POOL
 		)
@@ -152,14 +152,14 @@ func _attempt(
 
 	_in_flight += 1
 
-	var out: DotResult
+	var out: GSResult
 	# request_raw takes a PackedByteArray; request() takes a String and would
 	# mangle a binary body through UTF-8 conversion.
 	var err := req.request_raw(url, header_list, method, body)
 
 	if err != OK:
-		out = DotResult.failure(
-			DotError.from_engine(err, "starting request to %s" % _redact(url))
+		out = GSResult.failure(
+			GSError.from_engine(err, "starting request to %s" % _redact(url))
 		)
 	else:
 		var completed: Array = await req.request_completed
@@ -170,9 +170,9 @@ func _attempt(
 	return out
 
 
-## [method _attempt] as one browser fetch read whole ([method DotWeb.fetch_bytes]); GET only.
-func _attempt_whole(url: String, header_list: PackedStringArray, decode_text: bool, max_bytes: int) -> DotResult:
-	var res := await DotWeb.fetch_bytes(url, header_list, timeout_sec, maxi(_limit_for(max_bytes), 0))
+## [method _attempt] as one browser fetch read whole ([method GSWeb.fetch_bytes]); GET only.
+func _attempt_whole(url: String, header_list: PackedStringArray, decode_text: bool, max_bytes: int) -> GSResult:
+	var res := await GSWeb.fetch_bytes(url, header_list, timeout_sec, maxi(_limit_for(max_bytes), 0))
 	if not res.ok:
 		return res
 	var r: Dictionary = res.value
@@ -182,30 +182,30 @@ func _attempt_whole(url: String, header_list: PackedStringArray, decode_text: bo
 ## Turns [signal HTTPRequest.request_completed]'s four arguments into a result.
 func _interpret(
 	completed: Array, url: String, decode_text: bool = true
-) -> DotResult:
+) -> GSResult:
 	var result: int = completed[0]
 	var status: int = completed[1]
 	var raw_headers: PackedStringArray = completed[2]
 	var body: PackedByteArray = completed[3]
 
 	if result != HTTPRequest.RESULT_SUCCESS:
-		return DotResult.failure(_transport_error(result, url))
+		return GSResult.failure(_transport_error(result, url))
 
 	var headers := _parse_headers(raw_headers)
 
 	if status < 200 or status >= 300:
-		var e := DotError.from_http(status, body.get_string_from_utf8().substr(0, 512))
+		var e := GSError.from_http(status, body.get_string_from_utf8().substr(0, 512))
 		if headers.has("retry-after"):
 			var ra := str(headers["retry-after"]).strip_edges()
 			if ra.is_valid_float():
 				e.retry_after = ra.to_float()
 		# 5xx and 429 are worth retrying; from_http maps them to codes that
 		# is_retryable() already accepts, so nothing more is needed here.
-		return DotResult.failure(e)
+		return GSResult.failure(e)
 
 	if max_response_bytes > 0 and body.size() > max_response_bytes:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Response is larger than the configured limit.",
 			"%d > %d bytes" % [body.size(), max_response_bytes]
 		)
@@ -221,48 +221,48 @@ func _interpret(
 	if decode_text:
 		out["body_text"] = body.get_string_from_utf8()
 
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
-## Maps [enum HTTPRequest.Result] to a [DotError], keeping retryable apart from not. On web
+## Maps [enum HTTPRequest.Result] to a [GSError], keeping retryable apart from not. On web
 ## these collapse to CANT_CONNECT because [code]fetch()[/code] will not say why (often CORS).
-func _transport_error(result: int, url: String) -> DotError:
-	var e := DotError.new()
+func _transport_error(result: int, url: String) -> GSError:
+	var e := GSError.new()
 	e.context = {"url": _redact(url), "result": result}
 
 	match result:
 		HTTPRequest.RESULT_TIMEOUT:
-			e.code = DotError.CODE_TIMEOUT
+			e.code = GSError.CODE_TIMEOUT
 			e.message = "The request timed out."
 		HTTPRequest.RESULT_CANT_CONNECT:
-			e.code = DotError.CODE_NETWORK
+			e.code = GSError.CODE_NETWORK
 			e.message = "Could not connect."
-			if DotPlatform.is_web():
+			if GSPlatform.is_web():
 				e.detail = "in a browser this is usually a CORS or mixed-content block"
 		HTTPRequest.RESULT_CANT_RESOLVE:
-			e.code = DotError.CODE_NETWORK
+			e.code = GSError.CODE_NETWORK
 			e.message = "Could not resolve the host."
 		HTTPRequest.RESULT_CONNECTION_ERROR:
-			e.code = DotError.CODE_NETWORK
+			e.code = GSError.CODE_NETWORK
 			e.message = "The connection failed."
 		HTTPRequest.RESULT_TLS_HANDSHAKE_ERROR:
 			# Not retryable: a bad certificate is bad every time, and retrying
 			# hides a real misconfiguration behind a slow failure.
-			e.code = DotError.CODE_INVALID
+			e.code = GSError.CODE_INVALID
 			e.message = "The secure connection could not be established."
 			e.detail = "certificate rejected"
 		HTTPRequest.RESULT_REDIRECT_LIMIT_REACHED:
-			e.code = DotError.CODE_INVALID
+			e.code = GSError.CODE_INVALID
 			e.message = "Too many redirects."
 		HTTPRequest.RESULT_BODY_SIZE_LIMIT_EXCEEDED:
-			e.code = DotError.CODE_INVALID
+			e.code = GSError.CODE_INVALID
 			e.message = "The response was too large."
 		HTTPRequest.RESULT_DOWNLOAD_FILE_CANT_OPEN, \
 		HTTPRequest.RESULT_DOWNLOAD_FILE_WRITE_ERROR:
-			e.code = DotError.CODE_IO
+			e.code = GSError.CODE_IO
 			e.message = "Could not write the downloaded file."
 		_:
-			e.code = DotError.CODE_NETWORK
+			e.code = GSError.CODE_NETWORK
 			e.message = "The request failed."
 			e.detail = "HTTPRequest result %d" % result
 
@@ -277,10 +277,10 @@ func download_to_file(
 	range_start: int = 0,
 	headers: Dictionary = {},
 	max_bytes: int = 0
-) -> DotResult:
+) -> GSResult:
 	var url := resolve_url(url_or_path)
 
-	var parent := DotPaths.ensure_parent_dir(dest_path)
+	var parent := GSPaths.ensure_parent_dir(dest_path)
 	if not parent.ok:
 		return parent
 
@@ -303,8 +303,8 @@ func download_to_file(
 
 	var req := _acquire()
 	if req == null:
-		return DotResult.fail(
-			DotError.CODE_STATE, "Too many concurrent HTTP requests."
+		return GSResult.fail(
+			GSError.CODE_STATE, "Too many concurrent HTTP requests."
 		)
 
 	req.download_file = resume_target if resume_target != "" else dest_path
@@ -313,12 +313,12 @@ func download_to_file(
 
 	_in_flight += 1
 
-	var out: DotResult
+	var out: GSResult
 	var err := req.request(url, header_list, HTTPClient.METHOD_GET)
 
 	if err != OK:
-		out = DotResult.failure(
-			DotError.from_engine(err, "downloading %s" % _redact(url))
+		out = GSResult.failure(
+			GSError.from_engine(err, "downloading %s" % _redact(url))
 		)
 	else:
 		var completed: Array = await req.request_completed
@@ -326,31 +326,31 @@ func download_to_file(
 		var result: int = completed[0]
 
 		if result != HTTPRequest.RESULT_SUCCESS:
-			out = DotResult.failure(_transport_error(result, url))
+			out = GSResult.failure(_transport_error(result, url))
 		elif status == 416:
 			# Local partial is at least as long as the resource: fail so the caller restarts from zero.
-			out = DotResult.fail(
-				DotError.CODE_INVALID,
+			out = GSResult.fail(
+				GSError.CODE_INVALID,
 				"The server rejected the resume range.",
 				"local partial may be longer than the remote file"
 			)
 		elif status < 200 or status >= 300:
-			var http_err := DotError.from_http(status)
+			var http_err := GSError.from_http(status)
 			# Same as _request: a server's Retry-After beats a guessed backoff (429/503).
 			var rh := _parse_headers(completed[2])
 			if rh.has("retry-after"):
 				var ra := str(rh["retry-after"]).strip_edges()
 				if ra.is_valid_float():
 					http_err.retry_after = ra.to_float()
-			out = DotResult.failure(http_err)
+			out = GSResult.failure(http_err)
 		else:
 			# Only 206 continues what is on disk; 200 is the whole body.
 			var resumed := status == 206
-			var joined := DotResult.success(0)
+			var joined := GSResult.success(0)
 
 			if resume_target != "":
 				if resumed:
-					joined = DotPaths.append_file(
+					joined = GSPaths.append_file(
 						dest_path, resume_target, range_start
 					)
 					if joined.ok:
@@ -361,25 +361,25 @@ func download_to_file(
 						)
 				else:
 					# Whole resource: replace, or the prefix lands twice.
-					DotLog.debug(
+					GSLog.debug(
 						CHANNEL,
 						"server ignored Range; restarted from zero",
 						{"url": _redact(url)}
 					)
-					joined = DotPaths.replace_file(dest_path, resume_target)
+					joined = GSPaths.replace_file(dest_path, resume_target)
 
 			if not joined.ok:
 				out = joined
 			else:
 								# No flush: web `user://` sync is async and overlapping calls lose files; a partial
-								# costs one re-download and DotCloudStore flushes per committed object. A 2xx with
+								# costs one re-download and GSCloudStore flushes per committed object. A 2xx with
 								# no file on disk is a failure: HTTPRequest does not say whether its write landed.
-				var written := DotPaths.file_size(dest_path)
+				var written := GSPaths.file_size(dest_path)
 
 				if not FileAccess.file_exists(dest_path):
 					# Said once: parallel downloads each find the same thing.
 					if _engine_writes_downloads:
-						DotLog.warn(
+						GSLog.warn(
 							CHANNEL,
 							"this platform's HTTP client does not write downloads to "
 							+ "a file; fetching into memory from here on",
@@ -387,9 +387,9 @@ func download_to_file(
 						)
 
 					_engine_writes_downloads = false
-					out = DotResult.success({"retry_in_memory": true})
+					out = GSResult.success({"retry_in_memory": true})
 				else:
-					out = DotResult.success({
+					out = GSResult.success({
 						"status": status,
 						"headers": _parse_headers(completed[2]),
 						"size": written,
@@ -415,21 +415,21 @@ func download_to_file(
 static var _engine_writes_downloads: bool = not OS.has_feature("web")
 
 
-## [method download_to_file] for a platform whose HTTP client will not write a file: the body is held in memory and written through [DotPaths] (which flushes the web filesystem). Content objects are file-sized, so RAM is bounded.
+## [method download_to_file] for a platform whose HTTP client will not write a file: the body is held in memory and written through [GSPaths] (which flushes the web filesystem). Content objects are file-sized, so RAM is bounded.
 func _download_in_memory(
 	url: String,
 	dest_path: String,
 	range_start: int,
 	headers: Dictionary,
 	max_bytes: int = 0
-) -> DotResult:
+) -> GSResult:
 	var merged := headers.duplicate()
 
 	if range_start > 0:
 		merged["Range"] = "bytes=%d-" % range_start
 
-	var res: DotResult
-	if web_whole_body_fetch and DotWeb.can_fetch_bytes():
+	var res: GSResult
+	if web_whole_body_fetch and GSWeb.can_fetch_bytes():
 		res = await _request(HTTPClient.METHOD_GET, url, PackedByteArray(), merged, false, max_bytes, true)
 	else:
 		res = await _capped(max_bytes, HTTPClient.METHOD_GET, url, PackedByteArray(), merged, false)
@@ -445,24 +445,24 @@ func _download_in_memory(
 	var resumed := status == 206
 
 	var written := (
-		DotPaths.append_bytes(dest_path, body) if resumed and range_start > 0
-		else DotPaths.write_bytes(dest_path, body)
+		GSPaths.append_bytes(dest_path, body) if resumed and range_start > 0
+		else GSPaths.write_bytes(dest_path, body)
 	)
 
 	if not written.ok:
 		return written
 
-	return DotResult.success({
+	return GSResult.success({
 		"status": status,
 		"headers": response.get("headers", {}),
-		"size": DotPaths.file_size(dest_path),
+		"size": GSPaths.file_size(dest_path),
 		"resumed": resumed,
 	})
 
 
 ## Asks with a HEAD request whether a URL supports resuming: [code]{size, accepts_ranges, etag}[/code].
 ## On web false can mean the host does not expose the header through CORS.
-func probe(url_or_path: String, headers: Dictionary = {}) -> DotResult:
+func probe(url_or_path: String, headers: Dictionary = {}) -> GSResult:
 	var res := await request(
 		HTTPClient.METHOD_HEAD, url_or_path, PackedByteArray(), headers
 	)
@@ -472,7 +472,7 @@ func probe(url_or_path: String, headers: Dictionary = {}) -> DotResult:
 	var response: Dictionary = res.value
 	var h: Dictionary = response["headers"]
 
-	return DotResult.success({
+	return GSResult.success({
 		"size": int(str(h.get("content-length", "-1"))),
 		"accepts_ranges": str(h.get("accept-ranges", "")).to_lower() == "bytes",
 		"etag": str(h.get("etag", "")),

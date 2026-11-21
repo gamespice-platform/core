@@ -1,13 +1,13 @@
-class_name DotParallel
+class_name GSParallel
 extends RefCounted
 
 ## A fork/join that returns inside the tick: [code]count[/code] pure tasks, each writing only its own result slot, on the pool or inline.
-## Not [DotScheduler]. A task reads frozen data and touches no node API, physics, [DotLog], signal, shared container or random stream.
+## Not [GSScheduler]. A task reads frozen data and touches no node API, physics, [GSLog], signal, shared container or random stream.
 ## Static; [param workers] comes from the caller. See docs/engine-traps.md and server-threading.md.
 
 const CHANNEL := "parallel"
 
-## Default for [member auto_max]: the pool is shared with the engine and with [DotScheduler]'s
+## Default for [member auto_max]: the pool is shared with the engine and with [GSScheduler]'s
 ## threads, and the measured gain flattened well before the six cores of the box it was measured on.
 const AUTO_MAX := 8
 
@@ -18,7 +18,7 @@ static var auto_max: int = AUTO_MAX
 ## Fork/join times kept per label, for [method describe]'s p99.
 const _SAMPLES_KEPT := 256
 
-## Test switch: run every task twice (reverse order, then as configured) and [method DotLog.error]
+## Test switch: run every task twice (reverse order, then as configured) and [method GSLog.error]
 ## on any slot that differs, catching order dependence or impure tasks. Only for a task given a
 ## [code]compare[/code]. [code]GS_PARALLEL_VERIFY=1[/code] turns it on at the first [method run].
 static var verify: bool = false
@@ -37,7 +37,7 @@ static var _stats: Dictionary = {}
 ## Whether a [method run] can use the worker pool. Off on web even with threads: waiting for
 ## a group task would block the page's main thread, which the browser forbids.
 static func available() -> bool:
-	return DotPlatform.has_threads() and not DotPlatform.is_web() \
+	return GSPlatform.has_threads() and not GSPlatform.is_web() \
 		and OS.get_processor_count() > 1
 
 
@@ -56,7 +56,7 @@ static func resolve_workers(workers: int) -> int:
 ## Sets [member auto_max]; returns false (with an error, value unchanged) when [param value] is negative.
 static func set_auto_max(value: int) -> bool:
 	if value < 0:
-		DotLog.error(CHANNEL, "auto_max %d is negative; use 0 for no cap (kept %d)" % [value, auto_max])
+		GSLog.error(CHANNEL, "auto_max %d is negative; use 0 for no cap (kept %d)" % [value, auto_max])
 		return false
 	auto_max = value
 	return true
@@ -76,7 +76,7 @@ static func run(
 
 	if not _env_read:
 		_env_read = true
-		if DotConfig.gs_env("DOT_PARALLEL_VERIFY") == "1":
+		if GSConfig.gs_env("DOT_PARALLEL_VERIFY") == "1":
 			verify = true
 
 	var n := resolve_workers(workers)
@@ -109,7 +109,7 @@ static func run(
 			var difference: String = compare.call(reference[i], slots[i])
 			if difference != "":
 				verify_failures += 1
-				DotLog.error(CHANNEL, "verify: task differs between a reverse inline run and a %s run" % ("pooled" if n > 0 else "forward inline"),
+				GSLog.error(CHANNEL, "verify: task differs between a reverse inline run and a %s run" % ("pooled" if n > 0 else "forward inline"),
 					{"label": String(label), "task": i, "count": count, "difference": difference})
 
 	_note(label, count, n > 0, usec)

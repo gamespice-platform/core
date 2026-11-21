@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# IndexedDB lost-object probe: exports a tiny web build of this checkout's DotWeb (no JavaScriptBridge.eval; page side is
+# IndexedDB lost-object probe: exports a tiny web build of this checkout's GSWeb (no JavaScriptBridge.eval; page side is
 # addons/dot_core/web/dot_web.js) and, in headless Chromium, writes a burst of user:// files, closes the tab at once and
-# counts what the next load finds. mode old = the engine's own save only; new = DotWeb.sync_filesystem (adds the
+# counts what the next load finds. mode old = the engine's own save only; new = GSWeb.sync_filesystem (adds the
 # pagehide/beforeunload/visibility flush of fd70f43). Needs godot with web templates (export), node with playwright-core
 # (PW_CORE=<node_modules dir>) and chromium (CHROMIUM=<binary>) (check). The two halves may run on different hosts.
 #   tools/idb_probe.sh export OUTDIR                    build the page into OUTDIR

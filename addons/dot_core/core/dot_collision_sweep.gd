@@ -1,8 +1,8 @@
-class_name DotCollisionSweep
+class_name GSCollisionSweep
 extends RefCounted
 
 ## Compares what a level draws with what its physics world collides with, by rays, and lists where they disagree.
-## Rays, not shapes: a mesh with a body near it passes [DotCollisionAudit] while a staircase's treads sit a metre off its shapes.
+## Rays, not shapes: a mesh with a body near it passes [GSCollisionAudit] while a staircase's treads sit a metre off its shapes.
 ## Findings are counted per [constant CELL] of floor, so one missing room is one number. Use: [code]add_faces[/code], [code]sweep_drawn()[/code], [code]sweep_collision(points)[/code].
 
 ## Findings of one kind within this many metres of each other are one place.
@@ -108,12 +108,12 @@ func sweep_collision(stands: PackedVector3Array, label_of: Callable = Callable()
 
 ## Failure when a sweep that ran sampled nothing (a world built with draw off has no meshes, so "0 findings" would be false comfort).
 ## [param need_floor] and [param need_wall] say which samples this level must have produced.
-func verdict(need_floor: bool = true, need_wall: bool = false) -> DotResult:
+func verdict(need_floor: bool = true, need_wall: bool = false) -> GSResult:
 	if need_floor and floor_samples == 0:
-		return DotResult.fail(DotError.CODE_STATE, "the sweep sampled no drawn floor", "is the world built with draw on? %d wall samples, %d probe rays" % [wall_samples, probe_rays])
+		return GSResult.fail(GSError.CODE_STATE, "the sweep sampled no drawn floor", "is the world built with draw on? %d wall samples, %d probe rays" % [wall_samples, probe_rays])
 	if need_wall and wall_samples == 0:
-		return DotResult.fail(DotError.CODE_STATE, "the sweep sampled no drawn wall", "%d floor samples, %d probe rays" % [floor_samples, probe_rays])
-	return DotResult.success(results.size())
+		return GSResult.fail(GSError.CODE_STATE, "the sweep sampled no drawn wall", "%d floor samples, %d probe rays" % [floor_samples, probe_rays])
+	return GSResult.success(results.size())
 
 
 ## Counts of cells per kind and label as lines, then examples.

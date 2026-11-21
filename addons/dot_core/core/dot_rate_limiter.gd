@@ -1,8 +1,8 @@
-class_name DotRateLimiter
+class_name GSRateLimiter
 extends RefCounted
 
 ## Token-bucket rate limiting keyed by whatever you limit: bursts are allowed without 3x the rate across a window edge.
-## [code]var chat := DotRateLimiter.new(3.0, 5.0)[/code] (3/sec sustained, burst of 5), then [code]chat.allow(peer_id)[/code].
+## [code]var chat := GSRateLimiter.new(3.0, 5.0)[/code] (3/sec sustained, burst of 5), then [code]chat.allow(peer_id)[/code].
 
 ## Refill rate, tokens per second.
 var rate: float = 1.0

@@ -1,7 +1,7 @@
 extends Node
 
-## Exercises [DotParallel]: a pooled run equals the inline run slot for slot, the pool really ran off the calling thread (a "threads on" mode
-## that ran inline would pass equality), and [member DotParallel.verify] catches an order-dependent task. Three ERROR lines from the verify section are expected.
+## Exercises [GSParallel]: a pooled run equals the inline run slot for slot, the pool really ran off the calling thread (a "threads on" mode
+## that ran inline would pass equality), and [member GSParallel.verify] catches an order-dependent task. Three ERROR lines from the verify section are expected.
 
 const SECTIONS := 4
 const CHECKS := 18
@@ -12,19 +12,19 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_line("dot-core parallel self-test")
 	_line("")
 
-	var was_verify := DotParallel.verify
-	DotParallel.verify = false
+	var was_verify := GSParallel.verify
+	GSParallel.verify = false
 
 	_test_resolve()
 	_test_pooled_matches_inline()
 	_test_verify()
 	_test_describe()
 
-	DotParallel.verify = was_verify
+	GSParallel.verify = was_verify
 
 	_line("")
 	_line("%d sections, %d passed, %d failed" % [_section_count, _passed, _failed])
@@ -44,21 +44,21 @@ func _ready() -> void:
 
 func _test_resolve() -> void:
 	_section("worker counts")
-	var available := DotParallel.available()
+	var available := GSParallel.available()
 	_line("  (pool %s, %d cores)" % ["available" if available else "unavailable", OS.get_processor_count()])
-	_check(DotParallel.resolve_workers(0) == 0, "0 is off")
-	var auto := DotParallel.resolve_workers(-1)
-	_check(auto == 0 if not available else (auto >= 1 and auto <= DotParallel.AUTO_MAX),
+	_check(GSParallel.resolve_workers(0) == 0, "0 is off")
+	var auto := GSParallel.resolve_workers(-1)
+	_check(auto == 0 if not available else (auto >= 1 and auto <= GSParallel.AUTO_MAX),
 		"-1 is the cores less one, at least 1 and at most AUTO_MAX (%d)" % auto)
-	var was := DotParallel.auto_max
-	DotParallel.set_auto_max(1)
-	_check(DotParallel.resolve_workers(-1) == (1 if available else 0), "auto_max 1 caps the automatic count")
-	DotParallel.set_auto_max(0)
-	_check(DotParallel.resolve_workers(-1) == (maxi(1, OS.get_processor_count() - 1) if available else 0),
+	var was := GSParallel.auto_max
+	GSParallel.set_auto_max(1)
+	_check(GSParallel.resolve_workers(-1) == (1 if available else 0), "auto_max 1 caps the automatic count")
+	GSParallel.set_auto_max(0)
+	_check(GSParallel.resolve_workers(-1) == (maxi(1, OS.get_processor_count() - 1) if available else 0),
 		"auto_max 0 is no cap")
-	_check(not DotParallel.set_auto_max(-1) and DotParallel.auto_max == 0, "a negative auto_max is refused, value kept")
-	DotParallel.auto_max = was
-	_check(DotParallel.resolve_workers(3) == (3 if available else 0), "a count is itself where the pool is available")
+	_check(not GSParallel.set_auto_max(-1) and GSParallel.auto_max == 0, "a negative auto_max is refused, value kept")
+	GSParallel.auto_max = was
+	_check(GSParallel.resolve_workers(3) == (3 if available else 0), "a count is itself where the pool is available")
 
 
 func _test_pooled_matches_inline() -> void:
@@ -69,11 +69,11 @@ func _test_pooled_matches_inline() -> void:
 		for k in 20000:
 			h = (h * 1103515245 + 12345 + k) & 0x7fffffff
 		return [i, h]
-	var inline := DotParallel.run(task, 16, &"selftest.pure", 0)
-	var pooled := DotParallel.run(task, 16, &"selftest.pure", 4)
+	var inline := GSParallel.run(task, 16, &"selftest.pure", 0)
+	var pooled := GSParallel.run(task, 16, &"selftest.pure", 4)
 	_check(inline.size() == 16 and var_to_bytes(inline) == var_to_bytes(pooled),
 		"sixteen slots, the same bytes inline and on four workers")
-	_check(DotParallel.run(task, 0, &"selftest.pure", 4).is_empty(), "no tasks, no slots, no fork")
+	_check(GSParallel.run(task, 0, &"selftest.pure", 4).is_empty(), "no tasks, no slots, no fork")
 
 	var main_thread := OS.get_thread_caller_id()
 	var who := func(i: int) -> Variant:
@@ -81,14 +81,14 @@ func _test_pooled_matches_inline() -> void:
 		for k in 50000:
 			spin += k ^ i
 		return OS.get_thread_caller_id()
-	var threads := DotParallel.run(who, 8, &"selftest.threads", 4)
+	var threads := GSParallel.run(who, 8, &"selftest.threads", 4)
 	var off_main := 0
 	for id: int in threads:
 		if id != main_thread:
 			off_main += 1
-	_check(off_main > 0 if DotParallel.available() else off_main == 0,
+	_check(off_main > 0 if GSParallel.available() else off_main == 0,
 		"pooled tasks ran off the calling thread (%d of 8)" % off_main)
-	var inline_threads := DotParallel.run(who, 8, &"selftest.threads", 0)
+	var inline_threads := GSParallel.run(who, 8, &"selftest.threads", 0)
 	_check(inline_threads.all(func(id: int) -> bool: return id == main_thread),
 		"inline tasks ran on the calling thread")
 
@@ -100,47 +100,47 @@ func _test_verify() -> void:
 	var pure := func(i: int) -> Variant:
 		return i * i
 
-	DotParallel.verify = true
-	var failures := DotParallel.verify_failures
-	var runs := DotParallel.verify_runs
-	var squares := DotParallel.run(pure, 6, &"selftest.verify", 4, compare)
-	_check(DotParallel.verify_runs == runs + 1 and DotParallel.verify_failures == failures,
+	GSParallel.verify = true
+	var failures := GSParallel.verify_failures
+	var runs := GSParallel.verify_runs
+	var squares := GSParallel.run(pure, 6, &"selftest.verify", 4, compare)
+	_check(GSParallel.verify_runs == runs + 1 and GSParallel.verify_failures == failures,
 		"a pure task is run twice and passes")
 	_check(squares == [0, 1, 4, 9, 16, 25], "and its answers are the forward run's")
 
 	# Impure on purpose: each task takes the next number from a counter it shares, so its
 	# answer is the order it ran in. Inline (workers 0), because on the pool this would be a
 	# race rather than a reliable difference.
-	_line("  (three DotParallel verify ERROR lines follow, on purpose)")
+	_line("  (three GSParallel verify ERROR lines follow, on purpose)")
 	var counter := {"n": 0}
 	var impure := func(_i: int) -> Variant:
 		counter["n"] = int(counter["n"]) + 1
 		return counter["n"]
-	var _slots := DotParallel.run(impure, 3, &"selftest.verify", 0, compare)
-	_check(DotParallel.verify_failures > failures, "a task whose answer depends on order is caught")
+	var _slots := GSParallel.run(impure, 3, &"selftest.verify", 0, compare)
+	_check(GSParallel.verify_failures > failures, "a task whose answer depends on order is caught")
 
 	# Without a compare a task is taken to apply changes, and is never run twice.
 	var calls := {"n": 0}
 	var applying := func(_i: int) -> Variant:
 		calls["n"] = int(calls["n"]) + 1
 		return null
-	var _a := DotParallel.run(applying, 5, &"selftest.verify", 0)
+	var _a := GSParallel.run(applying, 5, &"selftest.verify", 0)
 	_check(int(calls["n"]) == 5, "a task with no compare runs once per slot")
-	DotParallel.verify = false
+	GSParallel.verify = false
 
 
 func _test_describe() -> void:
 	_section("describe")
-	var d := DotParallel.describe()
+	var d := GSParallel.describe()
 	var labels: Dictionary = d["labels"]
 	_check(labels.has("selftest.pure") and int(labels["selftest.pure"]["calls"]) == 2,
 		"figures per label (selftest.pure: 2 calls; the empty one is not a call)")
-	_check(int(labels["selftest.pure"]["pooled"]) == (1 if DotParallel.available() else 0),
+	_check(int(labels["selftest.pure"]["pooled"]) == (1 if GSParallel.available() else 0),
 		"pooled and inline counted apart")
-	var text := "\n".join(DotParallel.describe_lines())
+	var text := "\n".join(GSParallel.describe_lines())
 	_check(text.contains("selftest.threads") and text.contains("cores"), "describe_lines names the labels")
-	DotParallel.reset_stats()
-	_check((DotParallel.describe()["labels"] as Dictionary).is_empty(), "reset_stats forgets them")
+	GSParallel.reset_stats()
+	_check((GSParallel.describe()["labels"] as Dictionary).is_empty(), "reset_stats forgets them")
 
 
 func _section(title: String) -> void:

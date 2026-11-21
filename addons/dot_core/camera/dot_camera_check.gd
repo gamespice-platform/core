@@ -1,9 +1,9 @@
-class_name DotCameraCheck
+class_name GSCameraCheck
 extends RefCounted
 
 ## Flies a camera along a scripted path through a real level and counts the frames it ended inside geometry.
 ## Armed by construction: [method passed] needs the unprotected camera inside the level on some frames
-## and the [DotCameraProbe] one on none, and fails a probe that snapped a third of a metre in one frame.
+## and the [GSCameraProbe] one on none, and fails a probe that snapped a third of a metre in one frame.
 
 ## One turn of the view round [param pivot] over [param frames] frames, pitch swinging between
 ## [param pitch_low] and [param pitch_high] (radians; negative looks down), so the camera passes
@@ -49,7 +49,7 @@ static func pivots_near_walls(
 			var hit := space.intersect_ray(PhysicsRayQueryParameters3D.create(top, Vector3(x, bounds.position.y, z), mask))
 			if not hit.is_empty():
 				var eye: Vector3 = (hit["position"] as Vector3) + Vector3.UP * eye_height
-				if not DotCameraProbe.is_inside(space, eye, 0.3, mask):
+				if not GSCameraProbe.is_inside(space, eye, 0.3, mask):
 					var nearest := INF
 					for i in 8:
 						var angle := TAU * float(i) / 8.0
@@ -68,7 +68,7 @@ static func pivots_near_walls(
 	return out
 
 
-## Flies a fresh [DotCameraProbe] along [param path]: each transform is a pivot and the
+## Flies a fresh [GSCameraProbe] along [param path]: each transform is a pivot and the
 ## view's axes, and the camera wants to be at `origin + basis * offset`. Returns the counts.
 static func fly(
 	world: World3D,
@@ -79,7 +79,7 @@ static func fly(
 	radius: float = 0.2,
 	delta: float = 1.0 / 60.0
 ) -> Dictionary:
-	var probe := DotCameraProbe.new(world, mask)
+	var probe := GSCameraProbe.new(world, mask)
 	probe.radius = radius
 	for rid in exclude:
 		probe.add_excluded_object(rid)
@@ -102,10 +102,10 @@ static func fly(
 		var ray := PhysicsRayQueryParameters3D.create(pivot, wanted, mask, exclude)
 		var blocked := space != null and not space.intersect_ray(ray).is_empty()
 
-		if blocked or DotCameraProbe.is_inside(space, wanted, radius * 0.9, mask, exclude):
+		if blocked or GSCameraProbe.is_inside(space, wanted, radius * 0.9, mask, exclude):
 			unprotected += 1
 
-		if DotCameraProbe.is_inside(space, got, radius * 0.9, mask, exclude):
+		if GSCameraProbe.is_inside(space, got, radius * 0.9, mask, exclude):
 			inside += 1
 
 		if got.distance_to(wanted) > 0.05:

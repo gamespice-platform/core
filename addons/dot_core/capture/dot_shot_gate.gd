@@ -1,9 +1,9 @@
-class_name DotShotGate
+class_name GSShotGate
 extends RefCounted
 ## For screenshot tools: waits until a game's load cover has lifted, so a shot shows the HUD and not the cover. A fixed number of seconds is wrong on a cold GPU box (the cover can outlast it) and wasteful on a warm one.
 
 
-## Awaits until `platform.is_shown()` is true (DotGameClient: the load gate has lifted), polling every `poll_sec`, giving up after `timeout_sec` so a stuck cover cannot hang a shot. When it had to wait it then lets the cover's fade finish (`settle_sec`). A null `platform`, or one without `is_shown`, returns at once. Returns true when the cover is lifted, false on timeout.
+## Awaits until `platform.is_shown()` is true (GSGameClient: the load gate has lifted), polling every `poll_sec`, giving up after `timeout_sec` so a stuck cover cannot hang a shot. When it had to wait it then lets the cover's fade finish (`settle_sec`). A null `platform`, or one without `is_shown`, returns at once. Returns true when the cover is lifted, false on timeout.
 static func wait_lifted(tree: SceneTree, platform: Object, timeout_sec: float = 15.0, poll_sec: float = 0.25, settle_sec: float = 1.0) -> bool:
 	if not _has_shown(platform):
 		return true

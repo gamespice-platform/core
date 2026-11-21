@@ -1,7 +1,7 @@
-class_name DotContent
+class_name GSContent
 extends Object
 
-## The one place the family asks for downloadable content. GameSpice Cloud is found through [DotRegistry]
+## The one place the family asks for downloadable content. GameSpice Cloud is found through [GSRegistry]
 ## under [constant SERVICE] and duck-typed, never imported (a build that ships its content installs no
 ## cloud client). Static; the client's [code]ensure/resolve/is_mounted[/code] interface is the cloud's to keep.
 
@@ -13,7 +13,7 @@ const CHANNEL := "dot.content"
 
 ## The cloud client, or null when this deployment has none; null is a supported answer.
 static func client() -> Object:
-	return DotRegistry.get_service(SERVICE)
+	return GSRegistry.get_service(SERVICE)
 
 
 ## Whether anything here can actually fetch.
@@ -30,26 +30,26 @@ static func ensure(
 	version: String = "",
 	groups: PackedStringArray = PackedStringArray(),
 	manifest_url: String = ""
-) -> DotResult:
+) -> GSResult:
 	if content_id == &"":
-		return DotResult.fail(DotError.CODE_INVALID, "No content id to ensure.")
+		return GSResult.fail(GSError.CODE_INVALID, "No content id to ensure.")
 
 	var cloud := client()
 
 	if cloud == null:
-		DotLog.debug(CHANNEL, "no cloud client; assuming it ships in the build", {
+		GSLog.debug(CHANNEL, "no cloud client; assuming it ships in the build", {
 			"content": String(content_id)
 		})
-		return DotResult.success(false)
+		return GSResult.success(false)
 
 	if not cloud.has_method("ensure"):
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"The registered cloud client does not speak the content interface.",
 			"no ensure() on %s, registered as %s" % [cloud.get_class(), String(SERVICE)]
 		)
 
-	DotLog.info(CHANNEL, "fetching content", {
+	GSLog.info(CHANNEL, "fetching content", {
 		"content": String(content_id),
 		"version": version if version != "" else "(default)",
 		"url": manifest_url if manifest_url != "" else "(derived)",
@@ -59,14 +59,14 @@ static func ensure(
 		"ensure", content_id, version, groups, manifest_url
 	)
 
-	if got is DotResult:
+	if got is GSResult:
 		return got
 
 	# A client that answered with something else is a configuration error rather than a
 	# fetch failure, and saying which is what makes it findable.
-	return DotResult.fail(
-		DotError.CODE_INTERNAL,
-		"The cloud client returned something that is not a DotResult.",
+	return GSResult.fail(
+		GSError.CODE_INTERNAL,
+		"The cloud client returned something that is not a GSResult.",
 		str(got)
 	)
 
@@ -74,7 +74,7 @@ static func ensure(
 ## Fetch every id in [param content_ids]; one failure neither stops the others nor fails the
 ## call. Returns [code]{wanted, fetched, failed: PackedStringArray}[/code] so a server logs
 ## failures once at boot. Duplicates are collapsed.
-static func ensure_all(content_ids: PackedStringArray) -> DotResult:
+static func ensure_all(content_ids: PackedStringArray) -> GSResult:
 	var wanted := PackedStringArray()
 
 	for raw in content_ids:
@@ -93,18 +93,18 @@ static func ensure_all(content_ids: PackedStringArray) -> DotResult:
 			fetched += 1
 		else:
 			failed.append(id)
-			DotLog.warn(CHANNEL, "content did not arrive", {
+			GSLog.warn(CHANNEL, "content did not arrive", {
 				"content": id,
 				"code": res.error.code if res.error != null else "",
 				"message": res.error.message if res.error != null else "",
 			})
 
 	if not failed.is_empty():
-		DotLog.warn(CHANNEL, "some content did not arrive", {
+		GSLog.warn(CHANNEL, "some content did not arrive", {
 			"wanted": wanted.size(), "failed": failed.size(),
 		})
 
-	return DotResult.success({
+	return GSResult.success({
 		"wanted": wanted.size(), "fetched": fetched, "failed": failed,
 	})
 

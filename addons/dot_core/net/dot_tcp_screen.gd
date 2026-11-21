@@ -1,4 +1,4 @@
-class_name DotTcpScreen
+class_name GSTcpScreen
 extends RefCounted
 
 ## The public TCP port of a plain WebSocket listener, answering a TLS ClientHello with a close instead of silence. A relay, not a peek
@@ -47,16 +47,16 @@ var _over_limit: int = 0
 
 ## Listens on the public [param port]. [param inner_port] is the loopback port the
 ## WebSocket server listens on.
-func open(port: int, bind_address: String, inner_port: int) -> DotResult:
+func open(port: int, bind_address: String, inner_port: int) -> GSResult:
 	_server = TCPServer.new()
 	var bind := bind_address if bind_address != "" else "*"
 	var err := _server.listen(port, bind)
 	if err != OK:
 		_server = null
-		return DotResult.failure(DotError.from_engine(err, "listening on TCP %s:%d" % [bind, port]))
+		return GSResult.failure(GSError.from_engine(err, "listening on TCP %s:%d" % [bind, port]))
 	_public_port = _server.get_local_port()
 	_inner_port = inner_port
-	return DotResult.success(_public_port)
+	return GSResult.success(_public_port)
 
 
 func is_open() -> bool:
@@ -121,7 +121,7 @@ func pump_out() -> void:
 
 ## Moves what the WebSocket server has written since the last pump back to the clients. Its
 ## sends do not wait for the poll (put_packet writes the socket), so without this a packet
-## arrives a frame late. [DotDualPeer] calls it deferred, once per frame that sent anything.
+## arrives a frame late. [GSDualPeer] calls it deferred, once per frame that sent anything.
 func flush() -> void:
 	for link: Dictionary in _links:
 		var inner: StreamPeerTCP = link["inner"]
@@ -215,7 +215,7 @@ func _screen() -> void:
 			if not waited.is_empty():
 				# A truncated request: closed here rather than left for the engine's own
 				# handshake timeout to report.
-				DotLog.debug(CHANNEL, "closed a truncated request header", {"ip": outer.get_connected_host(), "bytes": waited.size()})
+				GSLog.debug(CHANNEL, "closed a truncated request header", {"ip": outer.get_connected_host(), "bytes": waited.size()})
 			outer.disconnect_from_host()
 		else:
 			still.append(entry)
@@ -226,7 +226,7 @@ func _refuse(outer: StreamPeerTCP, first: int) -> void:
 	_refused += 1
 	if first == TLS_HANDSHAKE:
 		_refused_tls += 1
-	DotLog.debug(
+	GSLog.debug(
 		CHANNEL,
 		"closed a connection that is not a WebSocket handshake",
 		{"ip": outer.get_connected_host(), "first_byte": first, "tls": first == TLS_HANDSHAKE}
@@ -285,7 +285,7 @@ func _refuse_http(outer: StreamPeerTCP, request: PackedByteArray, status: String
 	_refused += 1
 	_refused_http += 1
 	var line := request.get_string_from_ascii().get_slice("\r\n", 0).left(80)
-	DotLog.debug(
+	GSLog.debug(
 		CHANNEL,
 		"closed a plain HTTP request that is not a WebSocket upgrade",
 		{"ip": outer.get_connected_host(), "request": line}
@@ -304,7 +304,7 @@ func _open_link(outer: StreamPeerTCP, first: PackedByteArray) -> void:
 	var inner := StreamPeerTCP.new()
 	var err := inner.connect_to_host("127.0.0.1", _inner_port)
 	if err != OK:
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"could not reach the WebSocket server on loopback; dropping a client",
 			{"inner_port": _inner_port, "error": error_string(err)}

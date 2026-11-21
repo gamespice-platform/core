@@ -1,9 +1,9 @@
-class_name DotLog
+class_name GSLog
 extends RefCounted
 
 ## Levelled, channelled logging with pluggable sinks: a channel (subsystem), a level and structured fields.
 ## Static, not an autoload, so it can be called from a [Resource], a static function or an early [method _init].
-## Capture output by attaching a [DotLogSink] node or a [Callable] via [method add_sink].
+## Capture output by attaching a [GSLogSink] node or a [Callable] via [method add_sink].
 
 ## The six levels; a level is a promise to the reader, not a volume knob.
 ## TRACE per-frame detail; DEBUG a decision or transition; INFO what an admin keeps; WARN recoverable, someone should look;
@@ -29,7 +29,7 @@ enum Level {
 	ERROR,
 
 		## The process cannot continue.
-		## Reserve it: it promises a shutdown follows, and there is exactly one in the family ([code]DotServer._boot_failed[/code]).
+		## Reserve it: it promises a shutdown follows, and there is exactly one in the family ([code]GSServer._boot_failed[/code]).
 		## Sinks flush every target on one, since a buffered record is lost when the process goes.
 	FATAL,
 
@@ -83,7 +83,7 @@ static var timestamps: bool = false
 ## Emitted for every record that passes the level filter, after the sinks run.
 ## Wired through a hidden singleton node so that UI can `connect` to it without
 ## GameSpice Core owning an autoload; see [method signals].
-static var _bus: DotLogBus = null
+static var _bus: GSLogBus = null
 
 ## The platform prefix a channel is shown and configured under. Channels named before the
 ## Gamespice rename ([code]dot.x[/code], [code]dot_x.y[/code]) print and match as [code]gs.x[/code], [code]gs_x.y[/code].
@@ -158,7 +158,7 @@ static func level_column(level: int) -> String:
 
 
 ## Registers a sink. The callable receives one [Dictionary] record; see [method _emit].
-## Sinks run synchronously in registration order; a blocking sink blocks the frame, so file sinks buffer ([DotLogSink]).
+## Sinks run synchronously in registration order; a blocking sink blocks the frame, so file sinks buffer ([GSLogSink]).
 static func add_sink(sink: Callable) -> void:
 	if not _sinks.has(sink):
 		_sinks.append(sink)
@@ -182,11 +182,11 @@ static func sink_count() -> int:
 	return _sinks.size()
 
 
-## A [DotLogBus] carrying a `record` signal, for UI that would rather connect
+## A [GSLogBus] carrying a `record` signal, for UI that would rather connect
 ## than register a callable. Created on first use.
-static func signals() -> DotLogBus:
+static func signals() -> GSLogBus:
 	if _bus == null:
-		_bus = DotLogBus.new()
+		_bus = GSLogBus.new()
 	return _bus
 
 
@@ -222,21 +222,21 @@ static func at(
 	level: int, channel: String, message: String, fields: Dictionary = {}
 ) -> void:
 	if level < Level.TRACE or level >= Level.OFF:
-		push_error("DotLog.at() with a level that is not one of the six: %d" % level)
+		push_error("GSLog.at() with a level that is not one of the six: %d" % level)
 		return
 	_emit(level, channel, message, fields)
 
 
-## Logs a [DotResult] failure, or nothing at all on success.
+## Logs a [GSResult] failure, or nothing at all on success.
 ## [param level] matters: ERROR means a fault, and an optional subsystem not installed or an unconfigured backbone is
 ## configuration, so pass [constant Level.DEBUG] or [constant Level.WARN] there. [constant Level.OFF] is refused.
 static func result(
-	channel: String, what: String, res: DotResult, level: int = Level.ERROR
+	channel: String, what: String, res: GSResult, level: int = Level.ERROR
 ) -> void:
 	if res == null or res.ok:
 		return
 	if level < Level.TRACE or level >= Level.OFF:
-		push_error("DotLog.result() with a level that is not one of the six: %d" % level)
+		push_error("GSLog.result() with a level that is not one of the six: %d" % level)
 		level = Level.ERROR
 	var fields := {"code": res.code()}
 	if res.error != null:

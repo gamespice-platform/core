@@ -8,34 +8,34 @@ It targets desktop (Windows, macOS, Linux), mobile (Android, iOS) and the web fr
 
 1. Copy `addons/dot_core/` into your project.
 2. Enable dot-core in *Project > Project Settings > Plugins*.
-3. Run `godot --headless --path . --import` once so the `Dot*` classes register.
+3. Run `godot --headless --path . --import` once so the `GS*` classes register.
 
 The plugin only registers inspector types. Every class is available by its `class_name` whether the plugin is enabled or not. Starting a new game? Begin from [GameSpice Game Template](https://github.com/gamespice-platform/game-template).
 
 ## First steps
 
-1. Return failures as a `DotResult` and branch on its `DotError.CODE_*`, never on the message.
-2. Log through `DotLog`, with a `CHANNEL` constant per file.
+1. Return failures as a `GSResult` and branch on its `GSError.CODE_*`, never on the message.
+2. Log through `GSLog`, with a `CHANNEL` constant per file.
 3. Run the example scene under [Test](#test) on every platform you ship to.
 
 ## What is in it
 
 | Class | What it does |
 | --- | --- |
-| `DotResult`, `DotError` | The return type of everything that can fail. `CODE_*` values are stable. Reading `.value` on a failure raises an error instead of returning a default. |
-| `DotPlatform` | Cached checks for threads, UDP, listening, pack mounting and storage. Ask about capabilities, not platform names. |
-| `DotNodeRef` | An inspector-editable description of which node: relative, absolute, group, registry, ancestor or descendant by type, or create if missing. Replaces hardcoded scene paths. |
-| `DotConfig` | Layered configuration with key discovery and protection for secret keys. |
-| `DotScheduler`, `DotJob` | Long work in slices. Worker threads where they exist, a per-frame time budget where they do not. |
-| `DotTransport` | Swappable multiplayer transport. WebSocket serves browser and native clients from one listener. ENet is lighter but does not work in browsers. `DotTransportAuto` picks one and logs why. |
-| `DotHttp` | An `HTTPRequest` client with retries, jittered backoff, `Retry-After`, resumable downloads and connection pooling. Works in the browser. |
-| `DotLog`, `DotLogSink` | Levelled, channelled logging with structured fields, rotating files and UDP forwarding. [GameSpice Log](https://github.com/gamespice-platform/log) adds more sinks. |
-| `DotPaths` | Path cleaning that refuses traversal instead of repairing it, atomic writes and web filesystem flushing. |
-| `DotHash` | SHA-256, HMAC, constant-time comparison, base64url and secure random tokens. |
-| `DotRandomStream` and related | Randomness another machine can reproduce. A draw depends only on a key and an index, so peers that draw in a different order still agree. `DotRandomTable` does weighted picks, `DotRandomSchedule` does events in ticks, and `DotRandomManager` hands out named streams. See [docs/randomness.md](docs/randomness.md). |
-| `DotLoadGate`, `DotLoadingCover` | Holds the screen until the game is ready to be seen. See [docs/loading.md](docs/loading.md). |
+| `GSResult`, `GSError` | The return type of everything that can fail. `CODE_*` values are stable. Reading `.value` on a failure raises an error instead of returning a default. |
+| `GSPlatform` | Cached checks for threads, UDP, listening, pack mounting and storage. Ask about capabilities, not platform names. |
+| `GSNodeRef` | An inspector-editable description of which node: relative, absolute, group, registry, ancestor or descendant by type, or create if missing. Replaces hardcoded scene paths. |
+| `GSConfig` | Layered configuration with key discovery and protection for secret keys. |
+| `GSScheduler`, `GSJob` | Long work in slices. Worker threads where they exist, a per-frame time budget where they do not. |
+| `GSTransport` | Swappable multiplayer transport. WebSocket serves browser and native clients from one listener. ENet is lighter but does not work in browsers. `GSTransportAuto` picks one and logs why. |
+| `GSHttp` | An `HTTPRequest` client with retries, jittered backoff, `Retry-After`, resumable downloads and connection pooling. Works in the browser. |
+| `GSLog`, `GSLogSink` | Levelled, channelled logging with structured fields, rotating files and UDP forwarding. [GameSpice Log](https://github.com/gamespice-platform/log) adds more sinks. |
+| `GSPaths` | Path cleaning that refuses traversal instead of repairing it, atomic writes and web filesystem flushing. |
+| `GSHash` | SHA-256, HMAC, constant-time comparison, base64url and secure random tokens. |
+| `GSRandomStream` and related | Randomness another machine can reproduce. A draw depends only on a key and an index, so peers that draw in a different order still agree. `GSRandomTable` does weighted picks, `GSRandomSchedule` does events in ticks, and `GSRandomManager` hands out named streams. See [docs/randomness.md](docs/randomness.md). |
+| `GSLoadGate`, `GSLoadingCover` | Holds the screen until the game is ready to be seen. See [docs/loading.md](docs/loading.md). |
 
-`DotLog` mirrors only ERROR and above into Godot's own output (`mirror_min_level`). A debug build adds a backtrace to every mirrored line, and a recoverable warning would then look like a crash.
+`GSLog` mirrors only ERROR and above into Godot's own output (`mirror_min_level`). A debug build adds a backtrace to every mirrored line, and a recoverable warning would then look like a crash.
 
 ## Configuration layers
 
@@ -56,8 +56,8 @@ The folder name is the addon name with `-` written as `_`. Secrets are read from
 
 | Rule | Why |
 | --- | --- |
-| No autoloads. | An autoload reserves a global name, fixes the start order and cannot be created twice. Use `DotRegistry` for lookup and place nodes yourself. |
-| No hardcoded scene paths. | Anything that needs a host node exports a `DotNodeRef`. |
+| No autoloads. | An autoload reserves a global name, fixes the start order and cannot be created twice. Use `GSRegistry` for lookup and place nodes yourself. |
+| No hardcoded scene paths. | Anything that needs a host node exports a `GSNodeRef`. |
 | Browser limits are real. | There is no UDP, no `HTTPClient`, no threads by default, the filesystem needs explicit flushes, and a resource pack cannot be unmounted. See [docs/transports.md](docs/transports.md#where-each-constraint-lives). |
 
 More notes are in the [docs index](docs/README.md).
@@ -70,7 +70,7 @@ godot --headless --path . res://examples/capability_report.tscn
 godot --headless --path . res://examples/randomness_selftest.tscn
 ```
 
-Worker caps are settings: `DotParallel.auto_max` (default 8, 0 = unlimited) and `DotScheduler.auto_thread_max` (default 4, 0 = unlimited); negatives are refused with an error.
+Worker caps are settings: `GSParallel.auto_max` (default 8, 0 = unlimited) and `GSScheduler.auto_thread_max` (default 4, 0 = unlimited); negatives are refused with an error.
 
 The first scene prints what the build can do. The second checks the randomness code. Both run offline. The capability report shows quickly that a web export has no threads or that a device reports no storage quota, which changes how dot-cloud behaves. The `examples/` folder holds more self-tests.
 

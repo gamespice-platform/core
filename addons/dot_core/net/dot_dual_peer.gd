@@ -1,4 +1,4 @@
-class_name DotDualPeer
+class_name GSDualPeer
 extends MultiplayerPeerExtension
 
 ## A server peer that is two, WebSocket for browsers and ENet for native clients, presented to [SceneMultiplayer] as one.
@@ -15,10 +15,10 @@ var websocket: MultiplayerPeer = null
 var enet: MultiplayerPeer = null
 ## The UDP demultiplexer in front of [member enet], or null when ENet binds its
 ## port directly.
-var demux: DotUdpDemux = null
+var demux: GSUdpDemux = null
 ## The TCP screen in front of [member websocket], or null when WebSocket binds its port
 ## directly.
-var screen: DotTcpScreen = null
+var screen: GSTcpScreen = null
 
 ## external peer id -> Backend
 var _backend_of: Dictionary = {}
@@ -37,7 +37,7 @@ var _transfer_channel: int = 0
 var _transfer_mode: int = MultiplayerPeer.TRANSFER_MODE_RELIABLE
 var _refusing: bool = false
 var _closed: bool = false
-## A [method DotTcpScreen.flush] is queued for the end of this frame.
+## A [method GSTcpScreen.flush] is queued for the end of this frame.
 var _screen_flush_queued: bool = false
 
 var _collisions: int = 0
@@ -48,7 +48,7 @@ var _websocket_departing: int = 0
 
 
 func setup(
-	p_websocket: MultiplayerPeer, p_enet: MultiplayerPeer, p_demux: DotUdpDemux, p_screen: DotTcpScreen = null
+	p_websocket: MultiplayerPeer, p_enet: MultiplayerPeer, p_demux: GSUdpDemux, p_screen: GSTcpScreen = null
 ) -> void:
 	websocket = p_websocket
 	enet = p_enet
@@ -152,7 +152,7 @@ func describe_lines() -> PackedStringArray:
 func _on_connected(id: int, backend: int) -> void:
 	if _backend_of.has(id):
 		_collisions += 1
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"peer id taken by the other backend; disconnecting the newcomer",
 			{"id": id, "backend": backend}
@@ -168,7 +168,7 @@ func _on_connected(id: int, backend: int) -> void:
 		if not remote.is_empty():
 			_ws_remote_of[id] = remote
 
-	DotLog.debug(
+	GSLog.debug(
 		CHANNEL, "peer joined", {"id": id, "backend": "enet" if backend == Backend.ENET else "websocket"}
 	)
 	peer_connected.emit(id)

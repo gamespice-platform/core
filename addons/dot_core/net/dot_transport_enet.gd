@@ -1,9 +1,9 @@
 @tool
-class_name DotTransportENet
-extends DotTransport
+class_name GSTransportENet
+extends GSTransport
 
 ## ENet (UDP) transport: lower overhead, unreliable channels, no browser clients (the web template has no UDP or [ENetMultiplayerPeer]).
-## Use [DotTransportWebSocket] when browsers must connect.
+## Use [GSTransportWebSocket] when browsers must connect.
 ## Every ENet call goes through [method ClassDB.instantiate] and [method Object.call]: naming [code]ENetMultiplayerPeer[/code] fails to compile on web.
 
 ## ENet's own limit. Exceeding it is a configuration error, not a resource one.
@@ -16,9 +16,9 @@ const ENET_DEFAULT_THROTTLE_DECELERATION := 2
 
 @export_group("ENet")
 
-## Channels to allocate. See [enum DotTransport.Channel].
+## Channels to allocate. See [enum GSTransport.Channel].
 ## Must match on both ends: ENet takes the minimum, so a mismatch collapses the content channel onto a gameplay one.
-@export_range(1, 32, 1) var channel_count: int = DotTransport.CHANNEL_COUNT
+@export_range(1, 32, 1) var channel_count: int = GSTransport.CHANNEL_COUNT
 
 ## Client-side local port to bind. 0 lets the OS choose.
 ## Set only for a firewall rule needing a fixed source port; two clients then cannot share a machine.
@@ -73,35 +73,35 @@ func scheme() -> String:
 	return "udp"
 
 
-func _is_available() -> DotResult:
-	if DotPlatform.is_web():
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+func _is_available() -> GSResult:
+	if GSPlatform.is_web():
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"Browsers cannot use ENet.",
-			"the web export has no UDP sockets; use DotTransportWebSocket"
+			"the web export has no UDP sockets; use GSTransportWebSocket"
 		)
 
 	if not ClassDB.class_exists("ENetMultiplayerPeer"):
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"This build has no ENetMultiplayerPeer."
 		)
 
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func _create_server(port: int, bind_address: String) -> DotResult:
+func _create_server(port: int, bind_address: String) -> GSResult:
 	if max_clients > ENET_MAX_PEERS:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"ENet allows at most %d peers." % ENET_MAX_PEERS,
 			"max_clients is %d" % max_clients
 		)
 
 	var peer := _new_peer()
 	if peer == null:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED, "Could not create an ENet peer."
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED, "Could not create an ENet peer."
 		)
 
 	# set_bind_ip must precede create_server; afterwards the socket exists and
@@ -121,17 +121,17 @@ func _create_server(port: int, bind_address: String) -> DotResult:
 	)
 
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(err, "listening on UDP port %d" % port)
+		return GSResult.failure(
+			GSError.from_engine(err, "listening on UDP port %d" % port)
 		)
 
 	_apply_compression(peer)
 	_apply_timeouts_on_connect(peer)
-	return DotResult.success(peer as MultiplayerPeer)
+	return GSResult.success(peer as MultiplayerPeer)
 
 
-func _create_client(address: String, port: int) -> DotResult:
-	var parts := DotTransport.normalise_address(
+func _create_client(address: String, port: int) -> GSResult:
+	var parts := GSTransport.normalise_address(
 		address, port if port > 0 else 27015
 	)
 
@@ -139,14 +139,14 @@ func _create_client(address: String, port: int) -> DotResult:
 	var target_port := int(parts["port"])
 
 	if host == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID, "No host in '%s'." % address
+		return GSResult.fail(
+			GSError.CODE_INVALID, "No host in '%s'." % address
 		)
 
 	var peer := _new_peer()
 	if peer == null:
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED, "Could not create an ENet peer."
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED, "Could not create an ENet peer."
 		)
 
 	var err: int = peer.call(
@@ -160,15 +160,15 @@ func _create_client(address: String, port: int) -> DotResult:
 	)
 
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				err, "connecting to %s:%d" % [host, target_port]
 			)
 		)
 
 	_apply_compression(peer)
 	_apply_timeouts_on_connect(peer)
-	return DotResult.success(peer as MultiplayerPeer)
+	return GSResult.success(peer as MultiplayerPeer)
 
 
 func _new_peer() -> Object:
@@ -188,7 +188,7 @@ func _apply_compression(peer: Object) -> void:
 		return
 
 	host.call("compress", compression_mode)
-	DotLog.debug(
+	GSLog.debug(
 		CHANNEL, "enet compression set", {"mode": compression_mode}
 	)
 

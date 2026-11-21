@@ -6,7 +6,7 @@ extends Node
 const TOOL := "res://addons/dot_core/tools/dot_parse_all.gd"
 const DIR := "user://parse_all_selftest"
 const FILES := {
-	"good.gd": "class_name DotParseGood\nextends RefCounted\nfunc hi() -> int:\n\treturn 1\n",
+	"good.gd": "class_name GSParseGood\nextends RefCounted\nfunc hi() -> int:\n\treturn 1\n",
 	"bad_syntax.gd": "extends Node\nfunc f(\n\tpass\n",
 	"bad_type.gd": "extends Node\nfunc f() -> void:\n\tvar x: int = \"s\"\n",
 	"bad_ident.gd": "extends Node\nfunc f() -> void:\n\tUndeclaredThing.go()\n",

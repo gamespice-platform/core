@@ -1,8 +1,8 @@
-class_name DotHttpServer
+class_name GSHttpServer
 extends RefCounted
 
 ## A small HTTP/1.1 server on [TCPServer] for admin pages and JSON endpoints; the host calls [method poll] every frame.
-## Desktop and dedicated server only ([method DotPlatform.can_listen]); one request per connection, no keep-alive, chunking or pipelining, handlers synchronous.
+## Desktop and dedicated server only ([method GSPlatform.can_listen]); one request per connection, no keep-alive, chunking or pipelining, handlers synchronous.
 ## Strict: a malformed request gets 400, 408, 413, 414, 431, 501 or 505 and never reaches a route.
 
 const CHANNEL := "http_server"
@@ -52,38 +52,38 @@ class Conn:
 
 ## Binds and listens. Empty [param cert_path] and [param key_path] mean plain HTTP; give both for TLS.
 ## Paths only: key material is read from the files here and never from environment or argv.
-func start(port: int, bind_address: String = LOOPBACK, cert_path: String = "", key_path: String = "") -> DotResult:
-	if not DotPlatform.can_listen():
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "an HTTP server cannot listen on this platform")
+func start(port: int, bind_address: String = LOOPBACK, cert_path: String = "", key_path: String = "") -> GSResult:
+	if not GSPlatform.can_listen():
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "an HTTP server cannot listen on this platform")
 	if _server != null:
-		return DotResult.fail(DotError.CODE_STATE, "already listening")
+		return GSResult.fail(GSError.CODE_STATE, "already listening")
 	if cert_path.is_empty() != key_path.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "TLS needs both a certificate path and a key path")
+		return GSResult.fail(GSError.CODE_INVALID, "TLS needs both a certificate path and a key path")
 	_tls_options = null
 	if not cert_path.is_empty():
 		if not FileAccess.file_exists(cert_path) or not FileAccess.file_exists(key_path):
-			return DotResult.fail(DotError.CODE_IO, "TLS certificate or key file missing", "%s, %s" % [cert_path, key_path])
+			return GSResult.fail(GSError.CODE_IO, "TLS certificate or key file missing", "%s, %s" % [cert_path, key_path])
 		var cert := X509Certificate.new()
 		if cert.load(cert_path) != OK:
-			return DotResult.fail(DotError.CODE_IO, "cannot read TLS certificate", cert_path)
+			return GSResult.fail(GSError.CODE_IO, "cannot read TLS certificate", cert_path)
 		var key := CryptoKey.new()
 		if key.load(key_path) != OK:
-			return DotResult.fail(DotError.CODE_IO, "cannot read TLS key", key_path)
+			return GSResult.fail(GSError.CODE_IO, "cannot read TLS key", key_path)
 		_tls_options = TLSOptions.server(key, cert)
 	var srv := TCPServer.new()
 	var err := srv.listen(port, bind_address)
 	if err != OK:
-		return DotResult.failure(DotError.from_engine(err, "listen %s:%d" % [bind_address, port]))
+		return GSResult.failure(GSError.from_engine(err, "listen %s:%d" % [bind_address, port]))
 	_server = srv
 	_bind = bind_address
 	if _tls_options == null and not is_loopback(bind_address):
-		DotLog.warn(CHANNEL, "plain HTTP on a non-loopback address; put TLS in front", {"bind": bind_address})
-	DotLog.info(CHANNEL, "listening", {"bind": bind_address, "port": srv.get_local_port(), "tls": _tls_options != null})
-	return DotResult.success(srv.get_local_port())
+		GSLog.warn(CHANNEL, "plain HTTP on a non-loopback address; put TLS in front", {"bind": bind_address})
+	GSLog.info(CHANNEL, "listening", {"bind": bind_address, "port": srv.get_local_port(), "tls": _tls_options != null})
+	return GSResult.success(srv.get_local_port())
 
 
 ## Applies a config dictionary: bind, port, tls_mode ("native" uses cert and key paths), cert, key.
-func start_from_config(cfg: Dictionary) -> DotResult:
+func start_from_config(cfg: Dictionary) -> GSResult:
 	var native := str(cfg.get("tls_mode", "proxy")) == "native"
 	return start(int(cfg.get("port", 8080)), str(cfg.get("bind", LOOPBACK)),
 		str(cfg.get("cert", "")) if native else "", str(cfg.get("key", "")) if native else "")
@@ -95,7 +95,7 @@ func stop() -> void:
 	_conns.clear()
 	if _server != null:
 		_server.stop()
-		DotLog.info(CHANNEL, "stopped", {"requests": requests, "rejected": rejected})
+		GSLog.info(CHANNEL, "stopped", {"requests": requests, "rejected": rejected})
 	_server = null
 
 
@@ -107,7 +107,7 @@ func port() -> int:
 	return _server.get_local_port() if _server != null else 0
 
 
-## Registers an exact route. [param handler] is Callable(DotHttpRequest) -> DotHttpResponse. HEAD uses the GET route.
+## Registers an exact route. [param handler] is Callable(GSHttpRequest) -> GSHttpResponse. HEAD uses the GET route.
 func route(method: String, path: String, handler: Callable) -> void:
 	_routes["%s %s" % [method.to_upper(), path]] = handler
 
@@ -121,23 +121,23 @@ func route_prefix(method: String, prefix: String, handler: Callable) -> void:
 func serve_dir(url_prefix: String, dir: String, index: String = "index.html") -> void:
 	# A weak reference: a lambda capturing self would keep the server alive through its own route table.
 	var me := weakref(self)
-	route_prefix("GET", url_prefix, func(req: DotHttpRequest) -> DotHttpResponse:
-		var srv := me.get_ref() as DotHttpServer
-		return DotHttpServer.static_response(dir, req.rest, index, srv.max_static_bytes if srv != null else 16777216))
+	route_prefix("GET", url_prefix, func(req: GSHttpRequest) -> GSHttpResponse:
+		var srv := me.get_ref() as GSHttpServer
+		return GSHttpServer.static_response(dir, req.rest, index, srv.max_static_bytes if srv != null else 16777216))
 
 
 ## The file response for [param rel] under [param dir]: 403 for any traversal, 404 for missing, hidden or a directory without index.
-static func static_response(dir: String, rel: String, index: String = "index.html", max_bytes: int = 16777216) -> DotHttpResponse:
+static func static_response(dir: String, rel: String, index: String = "index.html", max_bytes: int = 16777216) -> GSHttpResponse:
 	if rel.contains("\\") or rel.contains(":"):
-		return DotHttpResponse.error(403)
+		return GSHttpResponse.error(403)
 	var parts: PackedStringArray = []
 	for seg in rel.split("/"):
 		if seg == "..":
-			return DotHttpResponse.error(403)
+			return GSHttpResponse.error(403)
 		if seg == "" or seg == ".":
 			continue
 		if seg.begins_with("."):
-			return DotHttpResponse.error(404)
+			return GSHttpResponse.error(404)
 		parts.append(seg)
 	var path := dir.rstrip("/")
 	if not parts.is_empty():
@@ -145,13 +145,13 @@ static func static_response(dir: String, rel: String, index: String = "index.htm
 	if DirAccess.dir_exists_absolute(path):
 		path += "/" + index
 	if not FileAccess.file_exists(path):
-		return DotHttpResponse.error(404)
+		return GSHttpResponse.error(404)
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		return DotHttpResponse.error(404)
+		return GSHttpResponse.error(404)
 	if f.get_length() > max_bytes:
-		return DotHttpResponse.error(403, "file too large")
-	return DotHttpResponse.make(200, f.get_buffer(f.get_length()), content_type_for(path))
+		return GSHttpResponse.error(403, "file too large")
+	return GSHttpResponse.make(200, f.get_buffer(f.get_length()), content_type_for(path))
 
 
 static func content_type_for(path: String) -> String:
@@ -171,13 +171,13 @@ static func content_type_for(path: String) -> String:
 
 
 ## Reads a one-line secret (token) from a file; the only way a secret should reach the server's host.
-static func read_secret_file(path: String) -> DotResult:
+static func read_secret_file(path: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(DotError.CODE_IO, "secret file missing", path)
+		return GSResult.fail(GSError.CODE_IO, "secret file missing", path)
 	var text := FileAccess.get_file_as_string(path).strip_edges()
 	if text.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "secret file is empty", path)
-	return DotResult.success(text)
+		return GSResult.fail(GSError.CODE_INVALID, "secret file is empty", path)
+	return GSResult.success(text)
 
 
 static func is_loopback(address: String) -> bool:
@@ -356,7 +356,7 @@ func _accept(tcp: StreamPeerTCP) -> void:
 		c.stream = tcp
 	if _conns.size() >= max_connections:
 		rejected += 1
-		_respond(c, DotHttpResponse.error(503, "too many connections"))
+		_respond(c, GSHttpResponse.error(503, "too many connections"))
 	_conns.append(c)
 
 
@@ -447,7 +447,7 @@ func _parse(c: Conn) -> void:
 
 func _dispatch(c: Conn, body: PackedByteArray) -> void:
 	requests += 1
-	var req := DotHttpRequest.new()
+	var req := GSHttpRequest.new()
 	req.method = str(c.head["method"])
 	req.path = str(c.head["path"])
 	req.query = c.head["query"]
@@ -456,11 +456,11 @@ func _dispatch(c: Conn, body: PackedByteArray) -> void:
 	req.remote_address = c.remote
 	c.head_only = req.method == "HEAD"
 	var res := _route(req)
-	DotLog.debug(CHANNEL, "request", {"method": req.method, "path": req.path, "status": res.status, "from": c.remote})
+	GSLog.debug(CHANNEL, "request", {"method": req.method, "path": req.path, "status": res.status, "from": c.remote})
 	_respond(c, res)
 
 
-func _route(req: DotHttpRequest) -> DotHttpResponse:
+func _route(req: GSHttpRequest) -> GSHttpResponse:
 	var method := "GET" if req.method == "HEAD" else req.method
 	var handler := Callable()
 	var key := "%s %s" % [method, req.path]
@@ -480,15 +480,15 @@ func _route(req: DotHttpRequest) -> DotHttpResponse:
 	if not handler.is_valid():
 		var allowed := _allowed(req.path)
 		if allowed.is_empty():
-			return DotHttpResponse.error(404)
-		var r := DotHttpResponse.error(405)
+			return GSHttpResponse.error(404)
+		var r := GSHttpResponse.error(405)
 		r.headers["Allow"] = ", ".join(allowed)
 		return r
 	var out: Variant = handler.call(req)
-	if out is DotHttpResponse:
+	if out is GSHttpResponse:
 		return out
-	DotLog.error(CHANNEL, "handler returned no response", {"path": req.path})
-	return DotHttpResponse.error(500)
+	GSLog.error(CHANNEL, "handler returned no response", {"path": req.path})
+	return GSHttpResponse.error(500)
 
 
 func _allowed(path: String) -> PackedStringArray:
@@ -506,12 +506,12 @@ func _allowed(path: String) -> PackedStringArray:
 
 func _reject(c: Conn, status: int, detail: String) -> bool:
 	rejected += 1
-	DotLog.debug(CHANNEL, "rejected", {"status": status, "detail": detail, "from": c.remote})
-	_respond(c, DotHttpResponse.error(status, detail))
+	GSLog.debug(CHANNEL, "rejected", {"status": status, "detail": detail, "from": c.remote})
+	_respond(c, GSHttpResponse.error(status, detail))
 	return true
 
 
-func _respond(c: Conn, res: DotHttpResponse) -> void:
+func _respond(c: Conn, res: GSHttpResponse) -> void:
 	c.out = res.to_wire(c.head_only)
 	c.sent = 0
 	c.writing = true

@@ -1,14 +1,14 @@
-class_name DotHash
+class_name GSHash
 extends RefCounted
 
 ## Hashing and HMAC, in slices where the input can be large. SHA-256 throughout: a downloaded PCK is mounted
-## into the running game and its hash is the only integrity check. Files too large for one frame go through [DotHashJob].
+## into the running game and its hash is the only integrity check. Files too large for one frame go through [GSHashJob].
 
 # No log channel: pure static hashing. The one engine failure it can meet (an HMAC
 # context that will not start) is a push_error, because the person who can fix it is
 # the one editing the code; everything else returns a value.
 
-## Bytes hashed per [method DotJob._step]: about 0.3 ms on a desktop, small enough to fit a
+## Bytes hashed per [method GSJob._step]: about 0.3 ms on a desktop, small enough to fit a
 ## frame slice and large enough that per-chunk overhead disappears.
 const CHUNK_SIZE := 262_144
 
@@ -31,16 +31,16 @@ static func sha256_text(text: String) -> String:
 	return sha256_bytes(text.to_utf8_buffer())
 
 
-## Hashes a whole file at once, blocking. For content use [DotHashJob]: a 500 MB pack
+## Hashes a whole file at once, blocking. For content use [GSHashJob]: a 500 MB pack
 ## freezes the process, and on web the browser may call that a hang.
-static func sha256_file(path: String) -> DotResult:
+static func sha256_file(path: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(DotError.CODE_IO, "File not found.", path)
+		return GSResult.fail(GSError.CODE_IO, "File not found.", path)
 
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				FileAccess.get_open_error(), "opening '%s'" % path
 			)
 		)
@@ -54,7 +54,7 @@ static func sha256_file(path: String) -> DotResult:
 			ctx.update(chunk)
 
 	f.close()
-	return DotResult.success(ctx.finish().hex_encode())
+	return GSResult.success(ctx.finish().hex_encode())
 
 
 

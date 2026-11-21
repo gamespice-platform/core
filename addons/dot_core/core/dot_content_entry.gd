@@ -1,7 +1,7 @@
-class_name DotContentEntry
+class_name GSContentEntry
 extends RefCounted
 
-## One thing a mounted content pack provides: a map, a weapon, a prop. Built by [DotContentIndex.add_pack];
+## One thing a mounted content pack provides: a map, a weapon, a prop. Built by [GSContentIndex.add_pack];
 ## read the typed fields and [method path], never join a mount prefix by hand (it is GameSpice Cloud's detail).
 
 var kind: StringName = &""
@@ -18,7 +18,7 @@ var tags: PackedStringArray = PackedStringArray()
 var meta: Dictionary = {}
 ## `&"subscription"`, `&"server"` or `&"game"`.
 var source: StringName = &""
-## Shared with the owning pack (the same Dictionary), so [method DotContentIndex.tag_pack]
+## Shared with the owning pack (the same Dictionary), so [method GSContentIndex.tag_pack]
 ## reaches every entry without walking them. Keys are session names, values are true.
 var sessions: Dictionary = {}
 ## The entry dictionary as published, unknown fields included.
@@ -33,12 +33,12 @@ static func make_key(p_content_id: String, p_version: String, p_kind: String, p_
 
 ## Fills an entry from its published dictionary. [param pack] is the index's record of the
 ## owning pack. Returns null when the dictionary has no usable kind and id.
-static func from_dict(d: Dictionary, pack: Dictionary) -> DotContentEntry:
+static func from_dict(d: Dictionary, pack: Dictionary) -> GSContentEntry:
 	var k := str(d.get("kind", ""))
 	var i := str(d.get("id", ""))
 	if k == "" or i == "":
 		return null
-	var e := DotContentEntry.new()
+	var e := GSContentEntry.new()
 	e.kind = StringName(k)
 	e.id = i
 	e.content_id = str(pack.get("content_id", ""))

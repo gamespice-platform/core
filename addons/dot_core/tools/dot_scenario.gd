@@ -1,4 +1,4 @@
-class_name DotScenario
+class_name GSScenario
 extends RefCounted
 
 ## A scripted play session as data: a clip is a list of steps, each applying from its time `t` (seconds) until the next, so a game adds a clip with JSON.
@@ -10,7 +10,7 @@ var steps: Array = []
 var fields: Dictionary = {}
 
 
-## Reads a scenario file's clips: {name: DotScenario}. Empty on a bad file.
+## Reads a scenario file's clips: {name: GSScenario}. Empty on a bad file.
 static func load_file(path: String) -> Dictionary:
 	var out := {}
 	var text := FileAccess.get_file_as_string(path)
@@ -19,7 +19,7 @@ static func load_file(path: String) -> Dictionary:
 		return out
 	var defaults: Dictionary = parsed.get("defaults", {})
 	for entry: Dictionary in parsed.get("clips", []):
-		var clip := DotScenario.new()
+		var clip := GSScenario.new()
 		clip.name = str(entry.get("name", ""))
 		clip.duration = float(entry.get("duration", 10.0))
 		clip.fields = defaults.duplicate()

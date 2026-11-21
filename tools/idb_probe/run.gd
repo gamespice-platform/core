@@ -1,19 +1,19 @@
 extends Node
 
 ## Page side of tools/idb_probe.sh: how many user:// files survive a tab closed right after a burst of writes. Query: phase=write|count, mode=old|new (old = the engine's own save only;
-## new = DotWeb.sync_filesystem, which also installs the pagehide/beforeunload/visibility flush), n=<files> (default 400), tail=<small files written two seconds after the sync call> (default 0), kb=<size each> (default 24).
+## new = GSWeb.sync_filesystem, which also installs the pagehide/beforeunload/visibility flush), n=<files> (default 400), tail=<small files written two seconds after the sync call> (default 0), kb=<size each> (default 24).
 ## Prints "IDB WROTE n" or "IDB COUNT n bytes" on the console; the page driver (check.mjs) reads them.
 
 const DIR := "user://idb_probe"
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.WARN)
+	GSLog.set_level(GSLog.Level.WARN)
 	_run.call_deferred()
 
 
 func _query(key: String, fallback: String) -> String:
-	var v := DotWeb.query_param(key)
+	var v := GSWeb.query_param(key)
 	return fallback if v.is_empty() else v
 
 
@@ -42,9 +42,9 @@ func _run() -> void:
 		f.store_buffer(blob)
 		f.close()
 	if _query("mode", "new") == "new":
-		DotWeb.sync_filesystem()
+		GSWeb.sync_filesystem()
 	else:
-		var b: Object = DotWeb.bridge()
+		var b: Object = GSWeb.bridge()
 		if b != null and b.has_method("force_fs_sync"):
 			b.call("force_fs_sync")
 	# tail: files written after the first sync finished, the ones only the unload flush can still save.

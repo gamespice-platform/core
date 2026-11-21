@@ -1,4 +1,4 @@
-class_name DotContentIndex
+class_name GSContentIndex
 extends RefCounted
 
 ## What has been mounted that a game could offer. Menus ask [method entries], never a pack path; an empty index means content ships in the build.
@@ -17,7 +17,7 @@ const KNOWN_KINDS: Array[StringName] = [
 	&"map", &"weapon", &"prop", &"npc", &"entity", &"tool", &"sound", &"script", &"addon", &"game",
 ]
 
-signal pack_added(pack: Dictionary, entries: Array[DotContentEntry])
+signal pack_added(pack: Dictionary, entries: Array[GSContentEntry])
 signal session_changed(session: StringName)
 
 # "<content_id>@<version>" -> pack record. Insertion order is mount order, which is list order.
@@ -27,12 +27,12 @@ var _session: StringName = SESSION_SOLO
 
 
 ## The registered index, created and registered on first call.
-static func shared() -> DotContentIndex:
-	var existing := DotRegistry.get_service(SERVICE) as DotContentIndex
+static func shared() -> GSContentIndex:
+	var existing := GSRegistry.get_service(SERVICE) as GSContentIndex
 	if existing != null:
 		return existing
-	var made := DotContentIndex.new()
-	DotRegistry.register(SERVICE, made)
+	var made := GSContentIndex.new()
+	GSRegistry.register(SERVICE, made)
 	return made
 
 
@@ -42,26 +42,26 @@ static func pack_key(p_content_id: String, p_version: String) -> String:
 
 ## Registers a mounted pack; [param info] is [code]{content_id, version, prefix, provides, session, source}[/code].
 ## Idempotent: a present pack only gains the session tag. Value: the new entries
-## ([code]Array[DotContentEntry][/code]; empty when already there).
-func add_pack(info: Dictionary) -> DotResult:
+## ([code]Array[GSContentEntry][/code]; empty when already there).
+func add_pack(info: Dictionary) -> GSResult:
 	var cid := str(info.get("content_id", ""))
 	var ver := str(info.get("version", ""))
 	var sess := StringName(str(info.get("session", "")))
 	if cid == "" or ver == "":
-		return DotResult.fail(DotError.CODE_INVALID, "A content pack needs a content_id and a version.")
+		return GSResult.fail(GSError.CODE_INVALID, "A content pack needs a content_id and a version.")
 	if sess != SESSION_SOLO and sess != SESSION_ONLINE:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Unknown session '%s'." % sess, "use solo or online"
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Unknown session '%s'." % sess, "use solo or online"
 		)
 	var provides: Variant = info.get("provides", {})
 	if not (provides is Dictionary):
-		return DotResult.fail(DotError.CODE_INVALID, "provides must be a dictionary.")
+		return GSResult.fail(GSError.CODE_INVALID, "provides must be a dictionary.")
 
 	var pk := pack_key(cid, ver)
-	var made: Array[DotContentEntry] = []
+	var made: Array[GSContentEntry] = []
 	if _packs.has(pk):
 		tag_pack(StringName(cid), ver, sess)
-		return DotResult.success(made)
+		return GSResult.success(made)
 
 	var pd := provides as Dictionary
 	var pack := {
@@ -81,22 +81,22 @@ func add_pack(info: Dictionary) -> DotResult:
 		for d: Variant in (raw_entries as Array):
 			if not (d is Dictionary):
 				continue
-			var e := DotContentEntry.from_dict(d as Dictionary, pack)
+			var e := GSContentEntry.from_dict(d as Dictionary, pack)
 			if e == null or _entries.has(e.key):
 				continue
 			if not KNOWN_KINDS.has(e.kind):
-				DotLog.debug(CHANNEL, "kept an entry of a kind nobody here offers", {"key": e.key})
+				GSLog.debug(CHANNEL, "kept an entry of a kind nobody here offers", {"key": e.key})
 			_entries[e.key] = e
 			keys.append(e.key)
 			made.append(e)
 	pack["keys"] = keys
 	_packs[pk] = pack
-	DotLog.info(CHANNEL, "pack added", {
+	GSLog.info(CHANNEL, "pack added", {
 		"pack": pk, "session": String(sess), "entries": made.size(),
 		"source": pack["source"],
 	})
 	pack_added.emit(pack, made)
-	return DotResult.success(made)
+	return GSResult.success(made)
 
 
 ## Adds [param session] to a pack that is already indexed (a solo-mounted pack a server then
@@ -104,20 +104,20 @@ func add_pack(info: Dictionary) -> DotResult:
 func tag_pack(content_id: StringName, version: String, session: StringName) -> void:
 	var pk := pack_key(String(content_id), version)
 	if not _packs.has(pk):
-		DotLog.debug(CHANNEL, "tag for a pack not indexed", {"pack": pk})
+		GSLog.debug(CHANNEL, "tag for a pack not indexed", {"pack": pk})
 		return
 	var sessions: Dictionary = (_packs[pk] as Dictionary)["sessions"]
 	if sessions.has(String(session)):
 		return
 	sessions[String(session)] = true
-	DotLog.debug(CHANNEL, "pack tagged", {"pack": pk, "session": String(session)})
+	GSLog.debug(CHANNEL, "pack tagged", {"pack": pk, "session": String(session)})
 
 
 func set_session(p_session: StringName) -> void:
 	if p_session == _session:
 		return
 	_session = p_session
-	DotLog.info(CHANNEL, "session changed", {"session": String(p_session)})
+	GSLog.info(CHANNEL, "session changed", {"session": String(p_session)})
 	session_changed.emit(p_session)
 
 
@@ -127,18 +127,18 @@ func session() -> StringName:
 
 ## Entries of [param kind] in packs tagged with [param for_session] ("" = the current one),
 ## in mount order.
-func entries(kind: StringName, for_session: StringName = &"") -> Array[DotContentEntry]:
+func entries(kind: StringName, for_session: StringName = &"") -> Array[GSContentEntry]:
 	var want := _session if for_session == &"" else for_session
-	var out: Array[DotContentEntry] = []
+	var out: Array[GSContentEntry] = []
 	for k: String in _entries:
-		var e: DotContentEntry = _entries[k]
+		var e: GSContentEntry = _entries[k]
 		if e.kind == kind and e.has_session(want):
 			out.append(e)
 	return out
 
 
 ## One entry by key regardless of session (tests, tools), or null.
-func entry(key: String) -> DotContentEntry:
+func entry(key: String) -> GSContentEntry:
 	return _entries.get(key, null)
 
 
@@ -160,7 +160,7 @@ func describe_lines() -> PackedStringArray:
 		var p: Dictionary = _packs[pk]
 		var counts: Dictionary = {}
 		for k: String in (p["keys"] as PackedStringArray):
-			var kind := String((_entries[k] as DotContentEntry).kind)
+			var kind := String((_entries[k] as GSContentEntry).kind)
 			counts[kind] = int(counts.get(kind, 0)) + 1
 		var kinds: PackedStringArray = []
 		for kind: String in counts:

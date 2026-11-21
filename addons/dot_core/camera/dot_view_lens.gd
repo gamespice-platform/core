@@ -1,4 +1,4 @@
-class_name DotViewLens
+class_name GSViewLens
 extends RefCounted
 
 ## The maths that draws a first-person model at its own field of view under the camera's: a

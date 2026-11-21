@@ -1,7 +1,7 @@
 extends Node
 
-## Exercises [DotHitchLog]: a deliberately slow frame is recorded with its mark and added nodes, quiet frames are not, the report names it, and a [DotFrameCost] report pins it on a system.
-## The last section traces nested spans and [DotSpaceQuery] queries through a frame record.
+## Exercises [GSHitchLog]: a deliberately slow frame is recorded with its mark and added nodes, quiet frames are not, the report names it, and a [GSFrameCost] report pins it on a system.
+## The last section traces nested spans and [GSSpaceQuery] queries through a frame record.
 
 const SECTIONS := 5
 const CHECKS := 36
@@ -13,7 +13,7 @@ var _measured: Array[Dictionary] = []
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_line("dot-core hitch log self-test")
 	await _test_records_a_slow_frame()
 	await _test_quiet_frames()
@@ -38,7 +38,7 @@ func _busy(ms: int) -> void:
 
 func _test_records_a_slow_frame() -> void:
 	_section("A slow frame is a hitch, with its mark and the node added in it")
-	var h := DotHitchLog.new()
+	var h := GSHitchLog.new()
 	h.threshold_ms = 40.0
 	h.start(get_tree())
 	await get_tree().process_frame
@@ -66,7 +66,7 @@ func _test_records_a_slow_frame() -> void:
 
 func _test_quiet_frames() -> void:
 	_section("Frames under the threshold record nothing")
-	var h := DotHitchLog.new()
+	var h := GSHitchLog.new()
 	h.threshold_ms = 500.0
 	h.start(get_tree())
 	for i in 5:
@@ -78,7 +78,7 @@ func _test_quiet_frames() -> void:
 
 func _test_report_and_stop() -> void:
 	_section("The report names the hitch; stop() ends recording")
-	var h := DotHitchLog.new()
+	var h := GSHitchLog.new()
 	h.threshold_ms = 30.0
 	h.start(get_tree())
 	await get_tree().process_frame
@@ -105,29 +105,29 @@ func _on_measured(rec: Dictionary) -> void:
 
 
 func _test_frame_cost() -> void:
-	_section("DotFrameCost charges a slow frame to the system that reported it")
-	_check(DotFrameCost.now() == 0, "now() is 0 while disabled")
-	DotFrameCost.add(&"ignored", 1)
-	DotFrameCost.enabled = true
-	var h := DotHitchLog.new()
+	_section("GSFrameCost charges a slow frame to the system that reported it")
+	_check(GSFrameCost.now() == 0, "now() is 0 while disabled")
+	GSFrameCost.add(&"ignored", 1)
+	GSFrameCost.enabled = true
+	var h := GSHitchLog.new()
 	h.threshold_ms = 40.0
 	var _c := h.frame_measured.connect(_on_measured)
 	h.start(get_tree())
 	await get_tree().process_frame
 	await get_tree().process_frame
-	var t := DotFrameCost.now()
+	var t := GSFrameCost.now()
 	_busy(60)
-	DotFrameCost.add(&"navigation", t, "rebuild paths")
-	var t2 := DotFrameCost.now()
+	GSFrameCost.add(&"navigation", t, "rebuild paths")
+	var t2 := GSFrameCost.now()
 	_busy(5)
-	DotFrameCost.add(&"ui", t2)
+	GSFrameCost.add(&"ui", t2)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_check(_measured.size() >= 3, "frame_measured fires every frame", str(_measured.size()))
 	_check(h.hitches.size() == 1, "one hitch", str(h.hitches.size()))
 	if h.hitches.is_empty():
 		h.stop()
-		DotFrameCost.reset()
+		GSFrameCost.reset()
 		return
 	var sys: Dictionary = h.hitches[0].get("systems", {})
 	_check(not sys.has(&"ignored"), "a report made while disabled is dropped")
@@ -138,12 +138,12 @@ func _test_frame_cost() -> void:
 	_check(emitted.size() == 1 and emitted[0].systems.has(&"navigation"), "the hitch is emitted whole, with its deltas", str(emitted.size()))
 	_check(h.report(1)[1].contains("systems=navigation"), "the report line leads with the costliest system", h.report(1)[1])
 	h.stop()
-	DotFrameCost.reset()
-	_check(DotFrameCost.take().is_empty() and not DotFrameCost.enabled, "reset clears and disables")
+	GSFrameCost.reset()
+	_check(GSFrameCost.take().is_empty() and not GSFrameCost.enabled, "reset clears and disables")
 
 
 func _test_trace_and_queries() -> void:
-	_section("Tracing keeps nested spans; DotSpaceQuery counts queries per system")
+	_section("Tracing keeps nested spans; GSSpaceQuery counts queries per system")
 	var wall := StaticBody3D.new()
 	var col := CollisionShape3D.new()
 	col.shape = BoxShape3D.new()
@@ -154,24 +154,24 @@ func _test_trace_and_queries() -> void:
 	await get_tree().physics_frame
 	var space := get_viewport().world_3d.direct_space_state
 	var q := PhysicsRayQueryParameters3D.create(Vector3.ZERO, Vector3(0, 0, -10))
-	var off := DotSpaceQuery.ray(space, q, &"bots")
+	var off := GSSpaceQuery.ray(space, q, &"bots")
 	_check(not off.is_empty(), "a query answers while disabled")
-	_check(DotFrameCost.take_queries().is_empty(), "and records nothing")
-	DotFrameCost.enabled = true
-	DotFrameCost.trace = true
+	_check(GSFrameCost.take_queries().is_empty(), "and records nothing")
+	GSFrameCost.enabled = true
+	GSFrameCost.trace = true
 	_measured.clear()
-	var h := DotHitchLog.new()
+	var h := GSHitchLog.new()
 	h.threshold_ms = 1000.0
 	var _c := h.frame_measured.connect(_on_measured)
 	h.start(get_tree())
 	await get_tree().process_frame
-	var outer := DotFrameCost.now()
-	var inner := DotFrameCost.now()
-	var hit := DotSpaceQuery.ray(space, q, &"bots")
-	var _r := DotSpaceQuery.ray(space, q)
+	var outer := GSFrameCost.now()
+	var inner := GSFrameCost.now()
+	var hit := GSSpaceQuery.ray(space, q, &"bots")
+	var _r := GSSpaceQuery.ray(space, q)
 	_busy(2)
-	DotFrameCost.add(&"bot_los", inner)
-	DotFrameCost.add(&"bots", outer)
+	GSFrameCost.add(&"bot_los", inner)
+	GSFrameCost.add(&"bots", outer)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	h.stop()
@@ -181,7 +181,7 @@ func _test_trace_and_queries() -> void:
 		if not (r.get("queries", {}) as Dictionary).is_empty():
 			rec = r
 	var qs: Dictionary = rec.get("queries", {})
-	_check(qs.get(&"bots", {}).get(DotSpaceQuery.RAY, {}).get("calls", 0) == 1, "the query is charged to its system", str(qs))
+	_check(qs.get(&"bots", {}).get(GSSpaceQuery.RAY, {}).get("calls", 0) == 1, "the query is charged to its system", str(qs))
 	_check(qs.has(&"unattributed"), "a query without a system is kept apart")
 	var ev: Dictionary = rec.get("events", {})
 	var events: PackedInt64Array = ev.get("events", PackedInt64Array())
@@ -200,8 +200,8 @@ func _test_trace_and_queries() -> void:
 	var usec: PackedInt64Array = rec.get("usec", PackedInt64Array())
 	_check(usec.size() == 5 and usec[0] > 0 and usec[4] >= usec[0], "the record carries its window stamps", str(usec))
 	_check(h.hitches.is_empty() or not h.hitches[0].has("events"), "kept hitches do not hold spans")
-	DotFrameCost.reset()
-	_check(not DotFrameCost.trace and DotFrameCost.take_events().events.is_empty(), "reset stops tracing and clears spans")
+	GSFrameCost.reset()
+	_check(not GSFrameCost.trace and GSFrameCost.take_events().events.is_empty(), "reset stops tracing and clears spans")
 	wall.queue_free()
 
 

@@ -1,4 +1,4 @@
-class_name DotCfgLegacy
+class_name GSCfgLegacy
 extends RefCounted
 
 ## Migration shim: a config file that moved is still read from its old path, with one WARN.
@@ -53,6 +53,6 @@ static func _report(old_path: String, what: String, new_path: String, is_error: 
 	var fields := {"old": old_path, "new": new_path, "remove_after": REMOVE_AFTER}
 	var msg := "legacy config file %s: %s" % [old_path, what]
 	if is_error:
-		DotLog.error(CHANNEL, msg, fields)
+		GSLog.error(CHANNEL, msg, fields)
 	else:
-		DotLog.warn(CHANNEL, msg, fields)
+		GSLog.warn(CHANNEL, msg, fields)

@@ -1,4 +1,4 @@
-class_name DotError
+class_name GSError
 extends RefCounted
 
 ## A failure with a stable machine-readable code and a human-readable message.
@@ -52,8 +52,8 @@ static func make(
 	p_code: String,
 	p_message: String,
 	p_detail: String = ""
-) -> DotError:
-	var e := DotError.new()
+) -> GSError:
+	var e := GSError.new()
 	e.code = p_code
 	e.message = p_message
 	e.detail = p_detail
@@ -61,8 +61,8 @@ static func make(
 
 
 ## Convenience for the very common "HTTP said no" case.
-static func from_http(status: int, body: String = "") -> DotError:
-	var e := DotError.new()
+static func from_http(status: int, body: String = "") -> GSError:
+	var e := GSError.new()
 	e.http_status = status
 	e.detail = body
 
@@ -89,8 +89,8 @@ static func from_http(status: int, body: String = "") -> DotError:
 
 
 ## Wraps a Godot [enum Error] so engine calls can join the same result flow.
-static func from_engine(err: int, what: String = "") -> DotError:
-	var e := DotError.new()
+static func from_engine(err: int, what: String = "") -> GSError:
+	var e := GSError.new()
 	e.code = CODE_IO
 	e.message = "%s failed." % what if what != "" else "Operation failed."
 	e.detail = "engine error %d (%s)" % [err, error_string(err)]

@@ -1,4 +1,4 @@
-class_name DotCameraBoom
+class_name GSCameraBoom
 extends Node3D
 
 ## A third-person camera mount that stays out of the level: `SpringArm3D`'s four names
@@ -36,13 +36,13 @@ extends Node3D
 ## and wants the camera placed in the same call sets this false and calls [method place].
 @export var auto_place: bool = true
 
-var probe: DotCameraProbe = null
+var probe: GSCameraProbe = null
 
 var _length: float = 0.0
 
 
 func _init() -> void:
-	probe = DotCameraProbe.new()
+	probe = GSCameraProbe.new()
 	probe.radius = margin
 	probe.collision_mask = collision_mask
 	process_priority = 900

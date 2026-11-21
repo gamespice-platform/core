@@ -1,12 +1,12 @@
 @tool
-class_name DotAddonApi
+class_name GSAddonApi
 extends RefCounted
 
 ## Which addon API a build has, and whether a pack that needs one can run on it.
 ## A pack compiles against the HOST's addons, so a newer-than-host pack fails to parse mid-load; this asks first and says "needs GameSpice Net API level 3; this server has 2".
 ## Levels live in each addon's [code]<addon>_api.gd[/code] (LEVEL bumped on add, OLDEST raised on remove); a checkout's plugin.cfg version is no honest number.
 
-# No log channel: every answer here is a DotResult its caller logs with the context this
+# No log channel: every answer here is a GSResult its caller logs with the context this
 # class does not have -- which content, which peer, which side.
 
 ## The file a pack carries at its root to say what it needs.
@@ -135,34 +135,34 @@ static func version_of(addon: String) -> String:
 
 ## Reads a requirements document. Returns `{addon: level}`.
 ## [param file_name] is only what messages call it. Strict on shape: a level that is not a positive integer is malformed, not zero.
-static func parse(text: String, file_name: String = REQUIREMENTS_FILE) -> DotResult:
+static func parse(text: String, file_name: String = REQUIREMENTS_FILE) -> GSResult:
 	var json := JSON.new()
 	if json.parse(text) != OK:
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"The game's %s is not valid JSON." % file_name,
 			json.get_error_message()
 		)
 
 	if not (json.data is Dictionary):
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"The game's %s is not a JSON object." % file_name
 		)
 
 	var doc: Dictionary = json.data
 	var format: Variant = doc.get("format", FORMAT)
 	if not (format is float or format is int) or int(format) > FORMAT:
-		return DotResult.fail(
-			DotError.CODE_VERSION,
+		return GSResult.fail(
+			GSError.CODE_VERSION,
 			"This game describes its requirements in a newer way than this build reads.",
 			"%s format %s, this build reads %d" % [file_name, str(format), FORMAT]
 		)
 
 	var raw: Variant = doc.get("addons", {})
 	if not (raw is Dictionary):
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"The game's %s has no addon table." % file_name
 		)
 
@@ -172,15 +172,15 @@ static func parse(text: String, file_name: String = REQUIREMENTS_FILE) -> DotRes
 		var level: Variant = (raw as Dictionary)[key]
 
 		if not _is_addon_name(addon):
-			return DotResult.fail(
-				DotError.CODE_PARSE,
+			return GSResult.fail(
+				GSError.CODE_PARSE,
 				"The game's %s names an addon that cannot exist." % file_name,
 				addon
 			)
 
 		if not (level is float or level is int) or int(level) < 1 or float(level) != float(int(level)):
-			return DotResult.fail(
-				DotError.CODE_PARSE,
+			return GSResult.fail(
+				GSError.CODE_PARSE,
 				"The game's %s gives %s a level that is not a positive whole number."
 					% [file_name, addon],
 				str(level)
@@ -188,7 +188,7 @@ static func parse(text: String, file_name: String = REQUIREMENTS_FILE) -> DotRes
 
 		out[addon] = int(level)
 
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
 ## The document for a set of requirements, sorted so two builds of one tree write the
@@ -206,8 +206,8 @@ static func encode(requirements: Dictionary) -> String:
 
 ## Whether this build can run something that needs [param requirements].
 ## [param who] is the noun a player reads. Every unmet requirement is in the detail; the message is the first.
-func check(requirements: Dictionary, who: String = "build") -> DotResult:
-	var problems: Array[DotError] = []
+func check(requirements: Dictionary, who: String = "build") -> GSResult:
+	var problems: Array[GSError] = []
 
 	var names: Array = requirements.keys()
 	names.sort()
@@ -218,8 +218,8 @@ func check(requirements: Dictionary, who: String = "build") -> DotResult:
 		var have := level_of(addon)
 
 		if have <= 0:
-			problems.append(DotError.make(
-				DotError.CODE_VERSION,
+			problems.append(GSError.make(
+				GSError.CODE_VERSION,
 				"This game needs %s, and this %s does not have it."
 					% [display_name(addon), who],
 				"%s>=%d: not installed" % [addon, need]
@@ -227,8 +227,8 @@ func check(requirements: Dictionary, who: String = "build") -> DotResult:
 			continue
 
 		if need > have:
-			problems.append(DotError.make(
-				DotError.CODE_VERSION,
+			problems.append(GSError.make(
+				GSError.CODE_VERSION,
 				"This game needs %s API level %d or newer; this %s has level %d."
 					% [display_name(addon), need, who, have],
 				"%s>=%d: have %d%s" % [addon, need, have, _version_note(addon)]
@@ -237,8 +237,8 @@ func check(requirements: Dictionary, who: String = "build") -> DotResult:
 
 		var oldest := oldest_of(addon)
 		if need < oldest:
-			problems.append(DotError.make(
-				DotError.CODE_VERSION,
+			problems.append(GSError.make(
+				GSError.CODE_VERSION,
 				"This game was built for %s API level %d, which this %s no longer supports (it supports %d to %d)."
 					% [display_name(addon), need, who, oldest, have],
 				"%s>=%d: have %d, oldest supported %d%s"
@@ -246,20 +246,20 @@ func check(requirements: Dictionary, who: String = "build") -> DotResult:
 			))
 
 	if problems.is_empty():
-		return DotResult.success(requirements)
+		return GSResult.success(requirements)
 
 	var details := PackedStringArray()
 	for p in problems:
 		details.append(p.detail)
 
 	var first := problems[0]
-	var err := DotError.make(first.code, first.message, "; ".join(details))
+	var err := GSError.make(first.code, first.message, "; ".join(details))
 	err.context = {"unmet": problems.size()}
-	return DotResult.failure(err)
+	return GSResult.failure(err)
 
 
 ## [method parse] and then [method check], for a caller holding the file's text.
-func check_text(text: String, who: String = "build") -> DotResult:
+func check_text(text: String, who: String = "build") -> GSResult:
 	var parsed := parse(text)
 	if not parsed.ok:
 		return parsed
@@ -268,10 +268,10 @@ func check_text(text: String, who: String = "build") -> DotResult:
 
 ## [method check] against a pack already mounted at [param prefix], when it carries a
 ## requirements file. A pack without one needs nothing that can be checked.
-func check_mounted(prefix: String, who: String = "build") -> DotResult:
+func check_mounted(prefix: String, who: String = "build") -> GSResult:
 	var path := prefix.trim_suffix("/") + "/" + REQUIREMENTS_FILE
 	if not FileAccess.file_exists(path):
-		return DotResult.success({})
+		return GSResult.success({})
 	return check_text(FileAccess.get_file_as_string(path), who)
 
 
@@ -376,7 +376,7 @@ static func _scan(root: String, skip_dirs: PackedStringArray, classes: Dictionar
 	var soft := {}
 	var word := RegEx.create_from_string("[A-Za-z_][A-Za-z0-9_]*")
 	var literal := RegEx.create_from_string("res://addons/([a-z0-9_]+)/")
-	var presence := RegEx.create_from_string("\\b(?:ResourceLoader\\.exists|FileAccess\\.file_exists|DirAccess\\.dir_exists_absolute|DotAddonApi\\.(?:installed|build_level))\\s*\\(")
+	var presence := RegEx.create_from_string("\\b(?:ResourceLoader\\.exists|FileAccess\\.file_exists|DirAccess\\.dir_exists_absolute|GSAddonApi\\.(?:installed|build_level))\\s*\\(")
 
 	for file in _source_files(root, skip_dirs):
 		var text := FileAccess.get_file_as_string(file)
@@ -484,7 +484,7 @@ static func floor_audit(
 			continue
 
 		if floor_level < have and not guards.has(addon):
-			out.append('%s has a floor of %d and no file asks the host for its level (DotAddonApi.build_level("%s")), so nothing runs an older path'
+			out.append('%s has a floor of %d and no file asks the host for its level (GSAddonApi.build_level("%s")), so nothing runs an older path'
 				% [addon, floor_level, addon])
 	return out
 

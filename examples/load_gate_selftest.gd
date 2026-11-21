@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotLoadGate] and [DotLoadingCover]: holds, predicates, the timeout warning, freezing and settling under the cover, closing again, the camera requirement and warm-up, a host claiming the cover, the older shells' root signal.
+## Exercises [GSLoadGate] and [GSLoadingCover]: holds, predicates, the timeout warning, freezing and settling under the cover, closing again, the camera requirement and warm-up, a host claiming the cover, the older shells' root signal.
 
 const SECTIONS := 14
 const CHECKS := 121
@@ -21,10 +21,10 @@ class FakeHost:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.DEBUG)
-	DotLog.print_to_stdout = false
+	GSLog.set_level(GSLog.Level.DEBUG)
+	GSLog.print_to_stdout = false
 	_sink = _on_record
-	DotLog.add_sink(_sink)
+	GSLog.add_sink(_sink)
 	_run()
 
 
@@ -32,10 +32,10 @@ func _on_record(rec: Dictionary) -> void:
 	_records.append(rec)
 
 
-# A sink left in DotLog's static list outlives this script, and the engine's exit teardown
+# A sink left in GSLog's static list outlives this script, and the engine's exit teardown
 # then frees memory twice (a heap abort after "0 failed").
 func _exit_tree() -> void:
-	DotLog.remove_sink(_sink)
+	GSLog.remove_sink(_sink)
 
 
 func _run() -> void:
@@ -71,11 +71,11 @@ func _run() -> void:
 
 
 ## A game root with a gate that needs no camera, so a test controls every reason itself.
-func _make(no_camera := true) -> DotLoadGate:
+func _make(no_camera := true) -> GSLoadGate:
 	var root := Node.new()
 	root.name = "Game%d" % _section_count
 	add_child(root)
-	var gate := DotLoadGate.new()
+	var gate := GSLoadGate.new()
 	gate.register_service = false
 	gate.require_camera = not no_camera
 	gate.warm_timeout_sec = 0.2
@@ -89,7 +89,7 @@ func _frames(n: int) -> void:
 	await get_tree().process_frame
 
 
-func _drop(gate: DotLoadGate) -> void:
+func _drop(gate: GSLoadGate) -> void:
 	var root := gate.get_parent()
 	remove_child(root)
 	root.free()
@@ -104,13 +104,13 @@ func _test_hold_release() -> void:
 	gate.opened.connect(func() -> void: opened.append(true))
 	gate.hold(&"map", "Loading the map")
 	gate.hold(&"players", "Waiting for players")
-	_check(not gate.is_open() and gate.state() == DotLoadGate.State.CLOSED, "closed while something is held")
+	_check(not gate.is_open() and gate.state() == GSLoadGate.State.CLOSED, "closed while something is held")
 	_check(gate.status_text() == "Waiting for players", "the newest hold says what is happening", gate.status_text())
 	_check(gate.reasons() == [&"map", &"players"], "reasons lists both, oldest first", str(gate.reasons()))
 	_check(gate.is_cover_showing(), "with no host the gate's own cover is up")
 	gate.set_progress(0.5, "Half way")
 	_check(not said.is_empty() and said[-1] == [0.5, "Half way"], "set_progress is announced", str(said.back()))
-	_check((gate.cover as DotLoadingCover).status() == "Half way", "and shown on the cover")
+	_check((gate.cover as GSLoadingCover).status() == "Half way", "and shown on the cover")
 	gate.set_progress(-1.0)
 	gate.release(&"players")
 	_check(gate.status_text() == "Loading the map", "releasing one hands the line to the other", gate.status_text())
@@ -160,13 +160,13 @@ func _test_timeout() -> void:
 		await get_tree().process_frame
 	_check(gate.is_open(), "open after the timeout")
 	var warned: Array = _records.filter(func(r: Dictionary) -> bool:
-		return int(r["level"]) == DotLog.Level.WARN and r["channel"] == DotLoadGate.CHANNEL)
+		return int(r["level"]) == GSLog.Level.WARN and r["channel"] == GSLoadGate.CHANNEL)
 	_check(warned.size() == 1, "exactly one warning", str(warned.size()))
 	var held: Array = (warned[0]["fields"] as Dictionary).get("still_held", []) if warned.size() > 0 else []
 	_check(held.has("map") and held.has("never"), "naming every reason still held", str(held))
 	_check(gate.reasons().is_empty(), "and nothing is held afterwards")
 	var infos: Array = _records.filter(func(r: Dictionary) -> bool:
-		return int(r["level"]) == DotLog.Level.INFO and r["channel"] == DotLoadGate.CHANNEL)
+		return int(r["level"]) == GSLog.Level.INFO and r["channel"] == GSLoadGate.CHANNEL)
 	_check(infos.size() == 1 and (infos[0]["fields"]["timed_out"] as Array).size() == 2, "the open line says it timed out", str(infos))
 	_drop(gate)
 
@@ -213,7 +213,7 @@ func _test_freeze() -> void:
 
 
 ## A body frozen in the air, over a floor.
-func _settle_rig(gate: DotLoadGate) -> Array:
+func _settle_rig(gate: GSLoadGate) -> Array:
 	var root := gate.get_parent()
 	var floor_body := StaticBody3D.new()
 	var floor_shape := CollisionShape3D.new()
@@ -255,11 +255,11 @@ func _test_settle() -> void:
 	while not gate.is_settling() and not gate.is_open() and Time.get_ticks_msec() - t0 < 10000:
 		await get_tree().physics_frame
 	_check(gate.is_settling() and not gate.is_open(), "released: it settles before it opens", str(gate.describe()))
-	_check(gate.is_cover_showing() and gate.state() == DotLoadGate.State.CLOSED, "still covered and still CLOSED to anyone asking")
+	_check(gate.is_cover_showing() and gate.state() == GSLoadGate.State.CLOSED, "still covered and still CLOSED to anyone asking")
 	await _frames(3)
 	_check(body.ticks > 0 and body.position.y < 1.0, "the frozen body simulates: it is falling", "ticks %d y %.3f" % [body.ticks, body.position.y])
 	_check(not body.input_enabled and body.input_ticks == 0, "with its input_enabled off", "input ticks %d" % body.input_ticks)
-	_check(not body.is_processing_unhandled_input() and body.has_meta(DotLoadGate.SETTLING_META), "its input events off and the settling meta on")
+	_check(not body.is_processing_unhandled_input() and body.has_meta(GSLoadGate.SETTLING_META), "its input events off and the settling meta on")
 	var ev := InputEventKey.new()
 	ev.keycode = KEY_W
 	ev.pressed = true
@@ -274,7 +274,7 @@ func _test_settle() -> void:
 		await get_tree().physics_frame
 	_check(gate.is_open() and at_open.size() == 1 and bool(at_open[0][0]), "it opens with the body on the floor", str(at_open))
 	_check(not input_seen and body.input_ticks == 0, "input stayed off for every frame until then", "input ticks %d" % body.input_ticks)
-	_check(body.input_enabled and body.is_processing_unhandled_input() and not body.has_meta(DotLoadGate.SETTLING_META), "is given back once open")
+	_check(body.input_enabled and body.is_processing_unhandled_input() and not body.has_meta(GSLoadGate.SETTLING_META), "is given back once open")
 	_check(sampler.process_mode == Node.PROCESS_MODE_PAUSABLE, "and the freeze_input node gets its own mode back")
 	var settled: Array = _records.filter(func(r: Dictionary) -> bool: return r["message"] == "settled")
 	_check(settled.size() == 1 and bool(settled[0]["fields"]["at_rest"]) and int(settled[0]["fields"]["frames"]) < gate.settle_frames,
@@ -406,7 +406,7 @@ func _test_reclose() -> void:
 	_check(gate.is_open() and log == ["ready", "opened"], "nothing held: ready, then open", str(log))
 	gate.hold(&"map", "Changing map")
 	_check(not gate.is_open() and log.back() == "closed", "a hold while open closes it and says so", str(log))
-	_check(gate.is_cover_showing() and (gate.cover as DotLoadingCover).status() == "Changing map", "and the cover is back with the new line")
+	_check(gate.is_cover_showing() and (gate.cover as GSLoadingCover).status() == "Changing map", "and the cover is back with the new line")
 	gate.release(&"map")
 	await _frames(6)
 	_check(log == ["ready", "opened", "closed", "ready", "opened"], "and it opens again", str(log))
@@ -455,7 +455,7 @@ func _test_camera_and_own_warmup() -> void:
 	gate.warm_up([StandardMaterial3D.new(), null])
 	_check(gate.warm_items().size() == 1, "warm_up keeps items and drops nulls")
 	await _frames(8)
-	_check(not gate.is_open() and gate.is_holding(DotLoadGate.REASON_CAMERA), "no camera in the game: held")
+	_check(not gate.is_open() and gate.is_holding(GSLoadGate.REASON_CAMERA), "no camera in the game: held")
 	var elsewhere := Camera3D.new()
 	add_child(elsewhere)
 	elsewhere.make_current()
@@ -473,7 +473,7 @@ func _test_camera_and_own_warmup() -> void:
 	gate.warm_game_root = true
 	var t0 := Time.get_ticks_msec()
 	var saw_warming := [false]
-	gate.ready_to_show.connect(func() -> void: saw_warming[0] = gate.state() == DotLoadGate.State.WARMING)
+	gate.ready_to_show.connect(func() -> void: saw_warming[0] = gate.state() == GSLoadGate.State.WARMING)
 	while not gate.is_open() and Time.get_ticks_msec() - t0 < 15000:
 		await get_tree().process_frame
 	_check(gate.is_open() and saw_warming[0], "a camera in the game opens it, through a warm-up", str(gate.describe()))
@@ -490,19 +490,19 @@ func _test_hosted() -> void:
 	var root := Node.new()
 	root.name = "HostedGame"
 	add_child(root)
-	set_meta(DotLoadGate.HOST_META, host)
-	var gate := DotLoadGate.new()
+	set_meta(GSLoadGate.HOST_META, host)
+	var gate := GSLoadGate.new()
 	gate.register_service = false
 	gate.require_camera = false
 	gate.host_wait_sec = 0.4
 	root.add_child(gate)
-	remove_meta(DotLoadGate.HOST_META)
+	remove_meta(GSLoadGate.HOST_META)
 	_check(host.adopted == [gate], "the host's adopt_load_gate is called on entering the tree")
 	_check(gate.is_hosted() and not gate.is_cover_showing(), "and the gate shows no cover of its own")
 	var ready := [0]
 	gate.ready_to_show.connect(func() -> void: ready[0] += 1)
 	await _frames(6)
-	_check(ready[0] == 1 and gate.state() == DotLoadGate.State.WARMING, "nothing held: it waits for the host's warm-up", str(gate.describe()))
+	_check(ready[0] == 1 and gate.state() == GSLoadGate.State.WARMING, "nothing held: it waits for the host's warm-up", str(gate.describe()))
 	gate.host_finished()
 	_check(gate.is_open(), "host_finished opens it")
 	gate.hold(&"map")
@@ -514,7 +514,7 @@ func _test_hosted() -> void:
 	while not gate.is_open() and Time.get_ticks_msec() - t0 < 15000:
 		await get_tree().process_frame
 	_check(gate.is_open(), "a host that never finishes is not waited on for ever")
-	_check(_records.any(func(r: Dictionary) -> bool: return int(r["level"]) == DotLog.Level.WARN), "and that is a warning")
+	_check(_records.any(func(r: Dictionary) -> bool: return int(r["level"]) == GSLog.Level.WARN), "and that is a warning")
 	# Claimed later, by a host that found the gate itself.
 	var gate2 := _make()
 	_check(gate2.is_cover_showing(), "an unclaimed gate covers")
@@ -532,16 +532,16 @@ func _hosted_placed_cover() -> void:
 	var root := Node.new()
 	root.name = "PlacedCoverGame"
 	add_child(root)
-	var cover := DotLoadingCover.new()
+	var cover := GSLoadingCover.new()
 	root.add_child(cover)
 	cover.show_cover()
-	set_meta(DotLoadGate.HOST_META, FakeHost.new())
-	var gate := DotLoadGate.new()
+	set_meta(GSLoadGate.HOST_META, FakeHost.new())
+	var gate := GSLoadGate.new()
 	gate.register_service = false
 	gate.require_camera = false
 	gate.cover = cover
 	root.add_child(gate)
-	remove_meta(DotLoadGate.HOST_META)
+	remove_meta(GSLoadGate.HOST_META)
 	await _frames(6)
 	_check(cover.is_showing(), "a placed cover stays up while the host warms")
 	gate.host_finished()
@@ -556,13 +556,13 @@ func _test_finding_and_old_shells() -> void:
 	add_child(root)
 	var deep := Node.new()
 	root.add_child(deep)
-	var gate := DotLoadGate.new()
+	var gate := GSLoadGate.new()
 	gate.require_camera = false
 	gate.service_scope = &"selftest"
 	root.add_child(gate)
-	_check(DotLoadGate.of(deep) == gate, "of() finds it from any node under the game")
-	_check(DotRegistry.get_service(DotRegistry.scoped_name(DotLoadGate.SERVICE, &"selftest")) == gate, "registered under its scope")
-	_check(DotLoadGate.of(self) == null, "and not from outside the game")
+	_check(GSLoadGate.of(deep) == gate, "of() finds it from any node under the game")
+	_check(GSRegistry.get_service(GSRegistry.scoped_name(GSLoadGate.SERVICE, &"selftest")) == gate, "registered under its scope")
+	_check(GSLoadGate.of(self) == null, "and not from outside the game")
 	_check(root.has_signal(&"ready_to_show"), "the root carries ready_to_show for an older shell")
 	var heard := [0]
 	root.connect(&"ready_to_show", func() -> void: heard[0] += 1)
@@ -571,15 +571,15 @@ func _test_finding_and_old_shells() -> void:
 	# A root that declares its own signal keeps it, and the gate does not emit it.
 	var own := preload("res://examples/load_gate_selftest_root.gd").new()
 	add_child(own)
-	var gate2 := DotLoadGate.new()
+	var gate2 := GSLoadGate.new()
 	gate2.register_service = false
 	gate2.require_camera = false
 	own.add_child(gate2)
 	await _frames(6)
 	_check(gate2.is_open() and own.emitted == 0, "a root with its own ready_to_show is left to emit it")
 	root.remove_child(gate)
-	_check(not root.has_meta(DotLoadGate.META), "leaving the tree takes the meta away")
-	_check(DotRegistry.get_service(DotRegistry.scoped_name(DotLoadGate.SERVICE, &"selftest")) == null, "and the registration")
+	_check(not root.has_meta(GSLoadGate.META), "leaving the tree takes the meta away")
+	_check(GSRegistry.get_service(GSRegistry.scoped_name(GSLoadGate.SERVICE, &"selftest")) == null, "and the registration")
 	gate.free()
 	remove_child(root)
 	root.free()
@@ -589,7 +589,7 @@ func _test_finding_and_old_shells() -> void:
 
 func _test_cover_title_tip() -> void:
 	_section("the stock cover: title and tip are opt-in")
-	var plain := DotLoadingCover.new()
+	var plain := GSLoadingCover.new()
 	add_child(plain)
 	plain.set_status("Working")
 	_check(plain.find_children("*", "Label", true, false).size() == 1, "default cover has only the status label")
@@ -602,7 +602,7 @@ func _test_cover_title_tip() -> void:
 	remove_child(plain)
 	plain.free()
 
-	var cover := DotLoadingCover.new()
+	var cover := GSLoadingCover.new()
 	cover.title = "Game"
 	cover.tip = "Hint"
 	cover.title_color = Color(1, 0.7, 0.1)
@@ -625,7 +625,7 @@ func _test_cover_title_tip() -> void:
 	remove_child(cover)
 	cover.free()
 
-	var sub := DotLoadingCover.new()
+	var sub := GSLoadingCover.new()
 	sub.title = "Early"
 	_check(sub.title == "Early", "a title set before the tree is kept")
 	add_child(sub)
@@ -676,7 +676,7 @@ func _test_audio_mute() -> void:
 	_drop(g2)
 	var root3 := Node.new()
 	add_child(root3)
-	var g3 := DotLoadGate.new()
+	var g3 := GSLoadGate.new()
 	g3.register_service = false
 	g3.mute_audio = false
 	root3.add_child(g3)

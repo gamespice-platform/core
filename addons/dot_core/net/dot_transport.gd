@@ -1,10 +1,10 @@
 @tool
-class_name DotTransport
+class_name GSTransport
 extends Resource
 
 ## Base class for a swappable multiplayer transport; the choice (the browser has no UDP, so no ENet) is a deployment decision in a [Resource].
-## A dual-audience server uses [DotTransportDual]; a client ENet, WebSocket or [DotTransportAuto]. Subclasses implement
-## [method _create_server] and [method _create_client], returning a [MultiplayerPeer] in a [DotResult].
+## A dual-audience server uses [GSTransportDual]; a client ENet, WebSocket or [GSTransportAuto]. Subclasses implement
+## [method _create_server] and [method _create_client], returning a [MultiplayerPeer] in a [GSResult].
 
 const CHANNEL := "transport"
 
@@ -49,30 +49,30 @@ const CHANNEL_COUNT := 4
 
 
 ## Creates a listening peer. Returns a [MultiplayerPeer] in the result.
-func _create_server(port: int, bind_address: String) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INTERNAL,
+func _create_server(port: int, bind_address: String) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INTERNAL,
 		"%s does not implement _create_server()." % _transport_name()
 	)
 
 
 ## Creates a connecting peer. [param address] is transport-specific (a host for ENet, a URL
 ## for WebSocket); [method normalise_address] makes a typed string usable by either.
-func _create_client(address: String, port: int) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_INTERNAL,
+func _create_client(address: String, port: int) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_INTERNAL,
 		"%s does not implement _create_client()." % _transport_name()
 	)
 
 
 func _transport_name() -> String:
-	return "DotTransport"
+	return "GSTransport"
 
 
 ## Whether this transport can run on the current build, so the failure is "cannot host over
 ## ENet" at boot and not a null peer later.
-func _is_available() -> DotResult:
-	return DotResult.success(true)
+func _is_available() -> GSResult:
+	return GSResult.success(true)
 
 
 ## Whether browser clients can connect to a server using this transport.
@@ -98,10 +98,10 @@ func scheme() -> String:
 
 
 ## Creates a listening peer, after checking the platform can do it.
-func create_server(port: int, bind_address: String = "*") -> DotResult:
-	if not DotPlatform.can_listen():
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+func create_server(port: int, bind_address: String = "*") -> GSResult:
+	if not GSPlatform.can_listen():
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"This platform cannot listen for connections.",
 			"a browser tab has no listening sockets; host on desktop and "
 			+ "connect from the browser as a client"
@@ -112,13 +112,13 @@ func create_server(port: int, bind_address: String = "*") -> DotResult:
 		return avail
 
 	if port < 0 or port > 65535:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Port %d is out of range." % port
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Port %d is out of range." % port
 		)
 
 	var res := _create_server(port, bind_address)
 	if res.ok:
-		DotLog.info(
+		GSLog.info(
 			CHANNEL,
 			"listening",
 			{
@@ -131,17 +131,17 @@ func create_server(port: int, bind_address: String = "*") -> DotResult:
 	return res
 
 
-func create_client(address: String, port: int = 0) -> DotResult:
+func create_client(address: String, port: int = 0) -> GSResult:
 	var avail := _is_available()
 	if not avail.ok:
 		return avail
 
 	if address.strip_edges() == "":
-		return DotResult.fail(DotError.CODE_INVALID, "No address given.")
+		return GSResult.fail(GSError.CODE_INVALID, "No address given.")
 
 	var res := _create_client(address, port)
 	if res.ok:
-		DotLog.info(
+		GSLog.info(
 			CHANNEL,
 			"connecting",
 			{"transport": _transport_name(), "address": address, "port": port}

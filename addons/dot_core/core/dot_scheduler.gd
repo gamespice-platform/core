@@ -1,8 +1,8 @@
 @tool
-class_name DotScheduler
+class_name GSScheduler
 extends Node
 
-## Drives [DotJob]s inside a per-frame time budget, with optional worker threads.
+## Drives [GSJob]s inside a per-frame time budget, with optional worker threads.
 ## Thread-safe jobs go to a worker pool on desktop; on web, and for scene-tree jobs, everything is sliced on the main thread inside [member frame_budget_ms].
 ## The budget is the point: 20 s of hashing in one call drops the frame; in 2 ms slices it is an animated progress bar.
 
@@ -13,7 +13,7 @@ signal idle()
 
 ## Emitted whenever a job settles, so a host can drive aggregate progress UI
 ## without tracking each job. Always delivered on the main thread.
-signal job_finished(job: DotJob)
+signal job_finished(job: GSJob)
 
 ## Steps between progress reports for jobs running on a worker thread.
 const PROGRESS_STEPS_ON_THREAD := 8
@@ -34,9 +34,9 @@ const PROGRESS_STEPS_ON_THREAD := 8
 
 @export_group("Threading")
 
-## Whether to use worker threads for [method DotJob.is_thread_safe] jobs.
+## Whether to use worker threads for [method GSJob.is_thread_safe] jobs.
 ##
-## Ignored when [method DotPlatform.has_threads] is false.
+## Ignored when [method GSPlatform.has_threads] is false.
 @export var use_threads: bool = true
 
 ## Worker count. 0 means [code]min(auto_thread_max, processors - 1)[/code]. Negative is refused
@@ -48,8 +48,8 @@ const PROGRESS_STEPS_ON_THREAD := 8
 ## Negative is refused loudly and treated as the default.
 @export_range(0, 16, 1, "or_greater") var auto_thread_max: int = 4
 
-var _main_queue: Array[DotJob] = []
-var _thread_queue: Array[DotJob] = []
+var _main_queue: Array[GSJob] = []
+var _thread_queue: Array[GSJob] = []
 var _threads: Array[Thread] = []
 var _mutex: Mutex = Mutex.new()
 var _semaphore: Semaphore = Semaphore.new()
@@ -58,7 +58,7 @@ var _boost_until_ms: int = 0
 var _running_on_threads: int = 0
 
 ## Jobs that settled on a worker and are waiting for main-thread teardown.
-var _completed: Array[DotJob] = []
+var _completed: Array[GSJob] = []
 
 
 func _ready() -> void:
@@ -69,7 +69,7 @@ func _ready() -> void:
 	if _threading_enabled():
 		_start_threads()
 
-	DotLog.debug(
+	GSLog.debug(
 		CHANNEL,
 		"scheduler ready",
 		{
@@ -84,17 +84,17 @@ func _exit_tree() -> void:
 
 
 func _threading_enabled() -> bool:
-	return use_threads and DotPlatform.has_threads()
+	return use_threads and GSPlatform.has_threads()
 
 
 func _resolved_thread_count() -> int:
 	if thread_count < 0:
-		DotLog.error("scheduler", "thread_count %d is negative; use 0 for automatic" % thread_count)
+		GSLog.error("scheduler", "thread_count %d is negative; use 0 for automatic" % thread_count)
 	if thread_count > 0:
 		return thread_count
 	var cap := auto_thread_max
 	if cap < 0:
-		DotLog.error("scheduler", "auto_thread_max %d is negative; use 0 for no cap (using 4)" % cap)
+		GSLog.error("scheduler", "auto_thread_max %d is negative; use 0 for no cap (using 4)" % cap)
 		cap = 4
 	var cores := maxi(1, OS.get_processor_count() - 1)
 	return cores if cap == 0 else mini(cores, cap)
@@ -102,9 +102,9 @@ func _resolved_thread_count() -> int:
 
 
 ## Queues a job. Returns it, so calls can be chained with [code]await[/code].
-func submit(job: DotJob) -> DotJob:
+func submit(job: GSJob) -> GSJob:
 	if job == null:
-		push_error("DotScheduler.submit(null)")
+		push_error("GSScheduler.submit(null)")
 		return job
 
 	if job.is_settled():
@@ -114,7 +114,7 @@ func submit(job: DotJob) -> DotJob:
 	# workers run at once. Answering with the job keeps `await run(job)` meaning the same
 	# thing the second time; the warning is there because a caller doing this is a bug.
 	if job._submitted:
-		DotLog.warn(CHANNEL, "job submitted twice; it runs once", {"job": job.name})
+		GSLog.warn(CHANNEL, "job submitted twice; it runs once", {"job": job.name})
 		return job
 	job._submitted = true
 
@@ -130,7 +130,7 @@ func submit(job: DotJob) -> DotJob:
 
 
 ## Queues a job and waits for it.
-func run(job: DotJob) -> DotResult:
+func run(job: GSJob) -> GSResult:
 	submit(job)
 	if job.is_settled():
 		return job.result
@@ -139,11 +139,11 @@ func run(job: DotJob) -> DotResult:
 
 ## Queues several jobs and waits for all of them.
 ## Results come in submission order so a caller can zip them against its inputs.
-func run_all(jobs: Array[DotJob]) -> Array[DotResult]:
+func run_all(jobs: Array[GSJob]) -> Array[GSResult]:
 	for j in jobs:
 		submit(j)
 
-	var out: Array[DotResult] = []
+	var out: Array[GSResult] = []
 	for j in jobs:
 		if j.is_settled():
 			out.append(j.result)
@@ -235,14 +235,14 @@ func _process(_delta: float) -> void:
 		idle.emit()
 
 
-func _finish_job(job: DotJob) -> void:
+func _finish_job(job: GSJob) -> void:
 	if not job.is_settled():
 		# A job whose _step returned false without calling _finish is a bug in
 		# that job. Settle it rather than leaving an await that never returns.
 		job._settle(
-			DotJob.State.DONE,
-			DotResult.fail(
-				DotError.CODE_INTERNAL,
+			GSJob.State.DONE,
+			GSResult.fail(
+				GSError.CODE_INTERNAL,
 				"Job '%s' stopped without producing a result." % job.name
 			)
 		)
@@ -282,7 +282,7 @@ func _worker_loop() -> void:
 			return
 
 		_mutex.lock()
-		var job: DotJob = null
+		var job: GSJob = null
 		if not _thread_queue.is_empty():
 			job = _thread_queue.pop_front()
 			_running_on_threads += 1
@@ -306,9 +306,9 @@ func _worker_loop() -> void:
 		# job.finished` that never returns and a caller blocked forever.
 		if not job.is_settled():
 			job._settle(
-				DotJob.State.CANCELLED,
-				DotResult.fail(
-					DotError.CODE_CANCELLED, "Scheduler shut down."
+				GSJob.State.CANCELLED,
+				GSResult.fail(
+					GSError.CODE_CANCELLED, "Scheduler shut down."
 				)
 			)
 

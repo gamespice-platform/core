@@ -1,4 +1,4 @@
-class_name DotCameraFade
+class_name GSCameraFade
 extends Node
 ## Fades characters between a camera and its [member focus], and hides one that walks into the camera: a [member near] sphere goes transparent,
 ## a capsule to the focus sets [member faded]. Faded, not collided with, so a bot behind the player cannot pull the camera in.

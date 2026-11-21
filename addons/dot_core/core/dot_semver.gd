@@ -1,4 +1,4 @@
-class_name DotSemVer
+class_name GSSemVer
 extends RefCounted
 
 ## Semantic version parsing and comparison, for GameSpice Cloud, GameSpice Server and GameSpice Auth refusals. Lexical comparison
@@ -17,8 +17,8 @@ var build: String = ""
 var valid: bool = false
 
 
-static func parse(s: String) -> DotSemVer:
-	var v := DotSemVer.new()
+static func parse(s: String) -> GSSemVer:
+	var v := GSSemVer.new()
 
 	var t := s.strip_edges()
 	if t.begins_with("v"):
@@ -52,8 +52,8 @@ static func from_parts(
 	p_major: int,
 	p_minor: int = 0,
 	p_patch: int = 0
-) -> DotSemVer:
-	var v := DotSemVer.new()
+) -> GSSemVer:
+	var v := GSSemVer.new()
 	v.major = p_major
 	v.minor = p_minor
 	v.patch = p_patch
@@ -62,7 +62,7 @@ static func from_parts(
 
 
 ## The engine's own version, for content that declares a minimum.
-static func engine() -> DotSemVer:
+static func engine() -> GSSemVer:
 	var info := Engine.get_version_info()
 	return from_parts(
 		int(info["major"]), int(info["minor"]), int(info["patch"])
@@ -70,7 +70,7 @@ static func engine() -> DotSemVer:
 
 
 ## -1, 0 or 1. Build metadata is ignored; a pre-release sorts below its release.
-func compare(other: DotSemVer) -> int:
+func compare(other: GSSemVer) -> int:
 	if major != other.major:
 		return -1 if major < other.major else 1
 	if minor != other.minor:
@@ -92,21 +92,21 @@ func compare(other: DotSemVer) -> int:
 	return -1 if prerelease < other.prerelease else 1
 
 
-func is_older_than(other: DotSemVer) -> bool:
+func is_older_than(other: GSSemVer) -> bool:
 	return compare(other) < 0
 
 
-func is_newer_than(other: DotSemVer) -> bool:
+func is_newer_than(other: GSSemVer) -> bool:
 	return compare(other) > 0
 
 
-func equals(other: DotSemVer) -> bool:
+func equals(other: GSSemVer) -> bool:
 	return compare(other) == 0
 
 
 ## Whether [param other] can consume content produced by this version: same major and [param other] at least as new.
 ## Below 1.0.0 the minor acts as the major, since pre-1.0 projects break on minor bumps.
-func is_compatible_with(other: DotSemVer) -> bool:
+func is_compatible_with(other: GSSemVer) -> bool:
 	if major != other.major:
 		return false
 	if major == 0 and minor != other.minor:

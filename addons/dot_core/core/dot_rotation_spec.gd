@@ -1,4 +1,4 @@
-class_name DotRotationSpec
+class_name GSRotationSpec
 extends RefCounted
 
 ## What an operator's rotation file says, and the one matcher turning entries into ids, shared by maps.yml and games.yml.
@@ -86,9 +86,9 @@ static func layer(specs: Array) -> Dictionary:
 
 ## Whether a file key (`game-airdrift`, `gamemann/game-airdrift`) names [param game].
 ## Id or name half, as content.yml matches games.
-## A former id of the game ([method DotAddonConfig.register_former_game]) matches too.
+## A former id of the game ([method GSAddonConfig.register_former_game]) matches too.
 static func key_matches(key: String, game: String) -> bool:
-	for g in DotAddonConfig.game_names(game):
+	for g in GSAddonConfig.game_names(game):
 		if key == g:
 			return true
 		if key.get_slice("/", key.get_slice_count("/") - 1) == g.get_slice("/", g.get_slice_count("/") - 1) \

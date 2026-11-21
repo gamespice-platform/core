@@ -1,4 +1,4 @@
-class_name DotBoundedBuffer
+class_name GSBoundedBuffer
 extends RefCounted
 
 ## A first-in first-out queue that cannot grow without limit, and says so when it sheds. Three addons each had their own: a log queue, a telemetry queue and a report outbox. A backed-up collector must cost history, never memory.

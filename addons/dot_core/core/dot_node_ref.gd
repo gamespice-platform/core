@@ -1,5 +1,5 @@
 @tool
-class_name DotNodeRef
+class_name GSNodeRef
 extends Resource
 
 ## A configurable, inspector-editable description of "which node", so no gs-* component
@@ -19,7 +19,7 @@ enum Mode {
 	## The first node in [member group]. Order is not defined when several
 	## match, so this is for groups with exactly one member by construction.
 	GROUP,
-	## Looked up in [DotRegistry] under [member service]. The loosest coupling
+	## Looked up in [GSRegistry] under [member service]. The loosest coupling
 	## available: neither side needs to know where the other sits.
 	REGISTRY,
 	## The nearest ancestor whose class or script matches [member type_name].
@@ -33,7 +33,7 @@ enum Mode {
 
 ## What is missing when resolution fails.
 enum OnMissing {
-	## Return a failed [DotResult]. The caller decides. Default.
+	## Return a failed [GSResult]. The caller decides. Default.
 	FAIL,
 	## Return a successful result carrying null.
 	NULL,
@@ -52,7 +52,7 @@ enum OnMissing {
 ## Used by [constant Mode.GROUP].
 @export var group: StringName = &""
 
-## Used by [constant Mode.REGISTRY]. See [DotRegistry].
+## Used by [constant Mode.REGISTRY]. See [GSRegistry].
 @export var service: StringName = &""
 
 ## Used by the two [code]*_OF_TYPE[/code] modes; matched against the engine class name and
@@ -89,29 +89,29 @@ var _cache: Dictionary = {}
 
 
 ## Builds a ref that resolves a path relative to the context.
-static func of_path(p: NodePath) -> DotNodeRef:
-	var r := DotNodeRef.new()
+static func of_path(p: NodePath) -> GSNodeRef:
+	var r := GSNodeRef.new()
 	r.mode = Mode.RELATIVE
 	r.path = p
 	return r
 
 
 ## Builds a ref that resolves to the context node itself.
-static func of_self() -> DotNodeRef:
-	var r := DotNodeRef.new()
+static func of_self() -> GSNodeRef:
+	var r := GSNodeRef.new()
 	r.mode = Mode.SELF
 	return r
 
 
-static func of_group(g: StringName) -> DotNodeRef:
-	var r := DotNodeRef.new()
+static func of_group(g: StringName) -> GSNodeRef:
+	var r := GSNodeRef.new()
 	r.mode = Mode.GROUP
 	r.group = g
 	return r
 
 
-static func of_service(s: StringName) -> DotNodeRef:
-	var r := DotNodeRef.new()
+static func of_service(s: StringName) -> GSNodeRef:
+	var r := GSNodeRef.new()
 	r.mode = Mode.REGISTRY
 	r.service = s
 	return r
@@ -123,8 +123,8 @@ static func of_service(s: StringName) -> DotNodeRef:
 static func of_created(
 	child_name: StringName,
 	script_or_class: Variant
-) -> DotNodeRef:
-	var r := DotNodeRef.new()
+) -> GSNodeRef:
+	var r := GSNodeRef.new()
 	r.mode = Mode.RELATIVE
 	r.path = NodePath(String(child_name))
 	r.create_name = child_name
@@ -168,7 +168,7 @@ static func _class_name_of(value: Variant) -> StringName:
 
 	if not ClassDB.class_exists(fallback):
 		push_error(
-			"DotNodeRef.of_created: cannot resolve a class name from '%s'."
+			"GSNodeRef.of_created: cannot resolve a class name from '%s'."
 			% str(value)
 		)
 
@@ -178,17 +178,17 @@ static func _class_name_of(value: Variant) -> StringName:
 
 ## Finds the node. [param context] is the node asking, usually [code]self[/code]; it anchors
 ## the relative modes and is the default parent for [constant OnMissing.CREATE].
-func resolve(context: Node) -> DotResult:
+func resolve(context: Node) -> GSResult:
 	if context == null:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "DotNodeRef.resolve() needs a context node."
+		return GSResult.fail(
+			GSError.CODE_INVALID, "GSNodeRef.resolve() needs a context node."
 		)
 
 	var key := context.get_instance_id()
 	if _cache.has(key):
 		var cached: Node = _cache[key]
 		if is_instance_valid(cached) and cached.is_inside_tree():
-			return DotResult.success(cached)
+			return GSResult.success(cached)
 		_cache.erase(key)
 
 	var found := _find(context)
@@ -196,22 +196,22 @@ func resolve(context: Node) -> DotResult:
 	if found == null:
 		match on_missing:
 			OnMissing.NULL:
-				return DotResult.success(null)
+				return GSResult.success(null)
 			OnMissing.CREATE:
 				var created := _create(context)
 				if not created.ok:
 					return created
 				found = created.value
 			_:
-				return DotResult.fail(
-					DotError.CODE_INVALID,
+				return GSResult.fail(
+					GSError.CODE_INVALID,
 					"Could not resolve node reference.",
 					describe()
 				)
 
 	if require_type != &"" and not _matches_type(found, require_type):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Node '%s' is a %s, expected %s." % [
 				found.name, found.get_class(), require_type
 			],
@@ -219,7 +219,7 @@ func resolve(context: Node) -> DotResult:
 		)
 
 	_cache[key] = found
-	return DotResult.success(found)
+	return GSResult.success(found)
 
 
 ## [method resolve] without the result wrapper, for call sites that genuinely
@@ -227,7 +227,7 @@ func resolve(context: Node) -> DotResult:
 func resolve_or_null(context: Node, channel: String = "noderef") -> Node:
 	var res := resolve(context)
 	if not res.ok:
-		DotLog.warn(channel, res.error.message, {"ref": describe()})
+		GSLog.warn(channel, res.error.message, {"ref": describe()})
 		return null
 	return res.value
 
@@ -268,7 +268,7 @@ func _find(context: Node) -> Node:
 		Mode.REGISTRY:
 			if service == &"":
 				return null
-			return DotRegistry.get_node_service(service)
+			return GSRegistry.get_node_service(service)
 
 		Mode.ANCESTOR_OF_TYPE:
 			if type_name == &"":
@@ -300,13 +300,13 @@ func _find_descendant(root: Node, wanted: StringName) -> Node:
 	return null
 
 
-func _create(context: Node) -> DotResult:
+func _create(context: Node) -> GSResult:
 	var parent := context
 	if not create_parent.is_empty():
 		var p := context.get_node_or_null(create_parent)
 		if p == null:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"Cannot create node: parent '%s' not found." % create_parent,
 				describe()
 			)
@@ -317,22 +317,22 @@ func _create(context: Node) -> DotResult:
 	if create_script != null:
 		var inst: Variant = create_script.new()
 		if not (inst is Node):
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"create_script does not produce a Node.",
 				describe()
 			)
 		node = inst
 	else:
 		if not ClassDB.class_exists(create_class):
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"Unknown class '%s'." % create_class,
 				describe()
 			)
 		if not ClassDB.is_parent_class(create_class, "Node"):
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"'%s' is not a Node." % create_class,
 				describe()
 			)
@@ -354,13 +354,13 @@ func _create(context: Node) -> DotResult:
 	if Engine.is_editor_hint() and parent.owner != null:
 		node.owner = parent.owner
 
-	DotLog.debug(
+	GSLog.debug(
 		"noderef",
 		"created node",
 		{"name": String(chosen), "parent": parent.name}
 	)
 
-	return DotResult.success(node)
+	return GSResult.success(node)
 
 
 ## Matches against the engine class, the script's [code]class_name[/code], and
@@ -396,4 +396,4 @@ func describe() -> String:
 
 
 func _to_string() -> String:
-	return "DotNodeRef(%s)" % describe()
+	return "GSNodeRef(%s)" % describe()

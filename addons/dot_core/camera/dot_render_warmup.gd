@@ -1,4 +1,4 @@
-class_name DotRenderWarmup
+class_name GSRenderWarmup
 extends Node3D
 
 ## Draws every material a scene will need once, out of sight, so shaders compile under a cover (the
@@ -291,15 +291,15 @@ func start() -> void:
 	_quad = QuadMesh.new()
 	_quad.size = Vector2(SIZE, SIZE)
 	if growth < 0.0 or (growth > 0.0 and growth < 1.0):
-		DotLog.warn(CHANNEL, "growth %.2f cannot grow a round; use 1 or more, or 0 for no limit" % growth, {"growth": growth})
+		GSLog.warn(CHANNEL, "growth %.2f cannot grow a round; use 1 or more, or 0 for no limit" % growth, {"growth": growth})
 	if dear_decay < 0.0 or dear_decay > 1.0:
-		DotLog.warn(CHANNEL, "dear_decay %.2f is outside 0..1; 0 forgets a dear item at once, 1 holds it" % dear_decay, {"dear_decay": dear_decay})
+		GSLog.warn(CHANNEL, "dear_decay %.2f is outside 0..1; 0 forgets a dear item at once, 1 holds it" % dear_decay, {"dear_decay": dear_decay})
 	var _c := RenderingServer.frame_post_draw.connect(_on_drawn)
 	var first := maxi(first_batch, 1)
 	_cap = first if batch_size <= 0 else mini(first, batch_size)
 	_draw_usec = Time.get_ticks_usec()
 	_place_batch()
-	DotLog.debug(CHANNEL, "warming %d materials and meshes" % _items.size(), {"items": _items.size(), "batch": batch_size, "budget_msec": budget_msec})
+	GSLog.debug(CHANNEL, "warming %d materials and meshes" % _items.size(), {"items": _items.size(), "batch": batch_size, "budget_msec": budget_msec})
 
 
 func _camera() -> Camera3D:
@@ -555,7 +555,7 @@ func _finish() -> void:
 		RenderingServer.frame_post_draw.disconnect(_on_drawn)
 	# A renderer that drew and then stopped (a hidden tab) leaves items to compile in play; headless never drew.
 	if _frames_total > 0 and left() > 0:
-		DotLog.warn(CHANNEL, "warm-up timed out with items never drawn (left and items in the context); they will compile on first use", describe())
+		GSLog.warn(CHANNEL, "warm-up timed out with items never drawn (left and items in the context); they will compile on first use", describe())
 	finished.emit(_placed)
 	queue_free()
 
@@ -565,7 +565,7 @@ func _exit_tree() -> void:
 		RenderingServer.frame_post_draw.disconnect(_on_drawn)
 	# Freed before its last round went up (its camera went away): those items compile on first use instead.
 	if _started and not _done and left() > 0:
-		DotLog.warn(CHANNEL, "warm-up freed with %d of %d items never drawn; they will compile on first use" % [left(), _items.size()], describe())
+		GSLog.warn(CHANNEL, "warm-up freed with %d of %d items never drawn; they will compile on first use" % [left(), _items.size()], describe())
 
 
 ## Items not put up yet.

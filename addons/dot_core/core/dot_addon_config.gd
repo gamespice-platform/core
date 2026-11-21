@@ -1,9 +1,9 @@
-class_name DotAddonConfig
+class_name GSAddonConfig
 extends RefCounted
 
 ## Where an addon's or pack's tuning lives: every `*.yml` in `cfg/addon/<addon_name>/`, read sorted by
 ## name, a later key overriding (maps merge, lists and scalars replace); defaults < yml < environment < command line.
-## `DotAddonConfig.load_dir("dot-map", defaults)`; roots, naming and secret refusal: docs/addon-config.md, [method export_filter_hint].
+## `GSAddonConfig.load_dir("dot-map", defaults)`; roots, naming and secret refusal: docs/addon-config.md, [method export_filter_hint].
 
 const CHANNEL := "addon_config"
 const SUBDIR := "addon"
@@ -15,9 +15,9 @@ const GAME_SUBDIR := "game"
 const USER_SUBDIR := "user/addon"
 ## The operator's per-game layer, strongest: `cfg/server/game/<game>/<addon_underscored>/`.
 const SERVER_GAME_SUBDIR := "server/game"
-## The operator layer before the mirror: `cfg/server/<addon_underscored>/`, shimmed by [DotCfgLegacy].
+## The operator layer before the mirror: `cfg/server/<addon_underscored>/`, shimmed by [GSCfgLegacy].
 const LEGACY_SERVER_SUBDIR := "server"
-## Tier -> the old directory prefixes read through [DotCfgLegacy], weakest first.
+## Tier -> the old directory prefixes read through [GSCfgLegacy], weakest first.
 const LEGACY_SUBDIRS := {
 	"addon": ["addons"],
 	"game": ["games"],
@@ -107,7 +107,7 @@ static func _resolve_file(file: String, new_dir: String, olds: Array, i: int) ->
 	var new_path := new_dir.path_join(file)
 	var found := ""
 	for variant in olds:
-		var r := DotCfgLegacy.find((variant as PackedStringArray)[i].path_join(file), new_path)
+		var r := GSCfgLegacy.find((variant as PackedStringArray)[i].path_join(file), new_path)
 		if r != "" and r != new_path:
 			found = r
 	if FileAccess.file_exists(new_path):
@@ -130,7 +130,7 @@ static func replace_aware_layers(addon_name: String, file: String, extra_dir: St
 	var all := file_layers(addon_name, file, extra_dir)
 	var start := 0
 	for i in range(all.size() - 1, -1, -1):
-		var parsed := DotYaml.parse_file(all[i])
+		var parsed := GSYaml.parse_file(all[i])
 		var wants_merge: bool = parsed.ok and parsed.value is Dictionary and (parsed.value as Dictionary).get("merge") == true
 		if not wants_merge:
 			start = i
@@ -141,31 +141,31 @@ static func replace_aware_layers(addon_name: String, file: String, extra_dir: St
 ## Reads one named yml for an addon that applies it to its own typed config: the game's,
 ## then the operator's copy (weakest first), each handed to [param apply]
 ## (`func(values, path) -> PackedStringArray`). Secrets stay file-only: no env or argv.
-static func apply_file(addon_name: String, file_name: String, legacy_dir: String, apply: Callable) -> DotResult:
+static func apply_file(addon_name: String, file_name: String, legacy_dir: String, apply: Callable) -> GSResult:
 	var layers := file_layers(addon_name, file_name)
 	var newest := (
 		layers[layers.size() - 1] if not layers.is_empty()
 		else write_dir_for(addon_name).path_join(file_name)
 	)
 	var old_path := legacy_dir.path_join(file_name) if legacy_dir != "" else ""
-	if old_path != "" and DotCfgLegacy.find(old_path, newest) == old_path:
+	if old_path != "" and GSCfgLegacy.find(old_path, newest) == old_path:
 		layers = PackedStringArray([old_path])
 
 	var applied := PackedStringArray()
 	for path in layers:
-		var parsed := DotYaml.parse_file(path)
+		var parsed := GSYaml.parse_file(path)
 		if not parsed.ok:
 			return parsed.wrap("Could not read '%s'." % path)
 		if parsed.value == null:
 			continue
 		if not (parsed.value is Dictionary):
-			return DotResult.fail(DotError.CODE_PARSE, "'%s' must hold a mapping at the top level." % path)
+			return GSResult.fail(GSError.CODE_PARSE, "'%s' must hold a mapping at the top level." % path)
 		applied.append_array(apply.call(parsed.value as Dictionary, path))
-	return DotResult.success(applied)
+	return GSResult.success(applied)
 
 
 ## Where a write belongs: `user://cfg/addon/<addon_underscored>`, the only root a game may
-## write. A `--config DIR` holding the addon overrides it. Call [code]DotWeb.sync_filesystem()[/code] after.
+## write. A `--config DIR` holding the addon overrides it. Call [code]GSWeb.sync_filesystem()[/code] after.
 static func write_dir_for(addon_name: String) -> String:
 	return "user://cfg".path_join(SUBDIR).path_join(folder_name(addon_name))
 
@@ -191,7 +191,7 @@ static func user_paths(addon_name: String, file: String) -> Dictionary:
 	var path := user_file(addon_name, file)
 	if not _file_ok(file) or not _addon_ok(addon_name) or not FileAccess.file_exists(path):
 		return {}
-	var res := DotYaml.parse_file(path)
+	var res := GSYaml.parse_file(path)
 	var out := {}
 	if res.ok and res.value is Dictionary:
 		_leaf_values(res.value, "", out)
@@ -201,16 +201,16 @@ static func user_paths(addon_name: String, file: String) -> Dictionary:
 ## Writes [param paths] (`{dotted path: value}`) into the user copy of [param file], keeping
 ## its other keys. A [param schema] limits each key to a declared field and type; a secret
 ## key or one in [param sensitive] is refused. `CODE_STATE` while the tier is off.
-static func save_user(addon_name: String, file: String, paths: Dictionary, schema: Array = [], sensitive: PackedStringArray = PackedStringArray()) -> DotResult:
+static func save_user(addon_name: String, file: String, paths: Dictionary, schema: Array = [], sensitive: PackedStringArray = PackedStringArray()) -> GSResult:
 	if not user_tier_enabled:
-		return DotResult.fail(DotError.CODE_STATE, "%s/%s: the user tier is off in this process" % [addon_name, file])
+		return GSResult.fail(GSError.CODE_STATE, "%s/%s: the user tier is off in this process" % [addon_name, file])
 	if not _file_ok(file) or not _addon_ok(addon_name):
-		return DotResult.fail(DotError.CODE_INVALID, "bad addon or file name '%s/%s'" % [addon_name, file])
+		return GSResult.fail(GSError.CODE_INVALID, "bad addon or file name '%s/%s'" % [addon_name, file])
 	var tree := {}
 	var path := user_file(addon_name, file)
 	var had := FileAccess.file_exists(path)
 	if had:
-		var existing := DotYaml.parse_file(path)
+		var existing := GSYaml.parse_file(path)
 		if not existing.ok:
 			return existing.wrap("saving %s" % path)
 		if existing.value is Dictionary:
@@ -218,39 +218,39 @@ static func save_user(addon_name: String, file: String, paths: Dictionary, schem
 	for key in paths:
 		var parts := String(key).split(".")
 		if String(key).is_empty() or parts.has(""):
-			return DotResult.fail(DotError.CODE_INVALID, "bad key path '%s'" % key)
+			return GSResult.fail(GSError.CODE_INVALID, "bad key path '%s'" % key)
 		var value: Variant = paths[key]
 		if not is_finite_value(value):
-			return DotResult.fail(DotError.CODE_INVALID, "%s: NaN or infinity is refused" % key)
+			return GSResult.fail(GSError.CODE_INVALID, "%s: NaN or infinity is refused" % key)
 		if _is_sensitive(String(key), sensitive) or _holds_secret(String(key), value, sensitive):
-			return DotResult.fail(DotError.CODE_FORBIDDEN, "%s: secrets are file-only" % key)
+			return GSResult.fail(GSError.CODE_FORBIDDEN, "%s: secrets are file-only" % key)
 		if not schema.is_empty():
 			var f := {}
 			for e in schema:
 				if e["name"] == parts[0]:
 					f = e
 			if f.is_empty():
-				return DotResult.fail(DotError.CODE_INVALID, "unknown key '%s'" % parts[0])
+				return GSResult.fail(GSError.CODE_INVALID, "unknown key '%s'" % parts[0])
 			if parts.size() > 1 and f["type"] != "dict":
-				return DotResult.fail(DotError.CODE_INVALID, "%s: '%s' is not a mapping, so it has no nested keys" % [key, parts[0]])
+				return GSResult.fail(GSError.CODE_INVALID, "%s: '%s' is not a mapping, so it has no nested keys" % [key, parts[0]])
 			if parts.size() == 1:
 				var checked := check_field(f, value)
 				if checked.has("error"):
-					return DotResult.fail(DotError.CODE_INVALID, "%s: %s" % [key, checked["error"]])
+					return GSResult.fail(GSError.CODE_INVALID, "%s: %s" % [key, checked["error"]])
 				value = checked["value"]
 		set_nested(tree, parts, value)
-	var text: Variant = DotYaml.emit(tree)
+	var text: Variant = GSYaml.emit(tree)
 	if text == null:
-		return DotResult.fail(DotError.CODE_INVALID, "%s holds a value yml cannot carry" % path)
-	var dir := DotPaths.ensure_parent_dir(path)
+		return GSResult.fail(GSError.CODE_INVALID, "%s holds a value yml cannot carry" % path)
+	var dir := GSPaths.ensure_parent_dir(path)
 	if not dir.ok:
 		return dir
-	var wrote := DotPaths.write_text(path, text)
+	var wrote := GSPaths.write_text(path, text)
 	if not wrote.ok:
 		return wrote.wrap("saving %s" % path)
-	DotWeb.sync_filesystem()
-	DotLog.info(CHANNEL, "saved to user layer", {"addon": addon_name, "file": file, "keys": paths.size()})
-	return DotResult.success({"saved": path})
+	GSWeb.sync_filesystem()
+	GSLog.info(CHANNEL, "saved to user layer", {"addon": addon_name, "file": file, "keys": paths.size()})
+	return GSResult.success({"saved": path})
 
 
 ## Sets the nested key [param parts] in [param root], creating mappings on the way; containers are copied.
@@ -327,17 +327,17 @@ static func check_field(f: Dictionary, v: Variant) -> Dictionary:
 
 
 ## Removes the user copy of [param file]: back to the tiers below. Value: true when a file was removed.
-static func reset_user(addon_name: String, file: String) -> DotResult:
+static func reset_user(addon_name: String, file: String) -> GSResult:
 	if not _file_ok(file) or not _addon_ok(addon_name):
-		return DotResult.fail(DotError.CODE_INVALID, "bad addon or file name '%s/%s'" % [addon_name, file])
+		return GSResult.fail(GSError.CODE_INVALID, "bad addon or file name '%s/%s'" % [addon_name, file])
 	var path := user_file(addon_name, file)
 	if not FileAccess.file_exists(path):
-		return DotResult.success(false)
+		return GSResult.success(false)
 	if DirAccess.remove_absolute(path) != OK:
-		return DotResult.fail(DotError.CODE_IO, "cannot remove %s" % path)
-	DotWeb.sync_filesystem()
-	DotLog.info(CHANNEL, "user layer reset", {"addon": addon_name, "file": file})
-	return DotResult.success(true)
+		return GSResult.fail(GSError.CODE_IO, "cannot remove %s" % path)
+	GSWeb.sync_filesystem()
+	GSLog.info(CHANNEL, "user layer reset", {"addon": addon_name, "file": file})
+	return GSResult.success(true)
 
 
 static func _file_ok(file: String) -> bool:
@@ -376,23 +376,23 @@ static func export_filter_hint() -> String:
 
 ## Reads every yml for [param addon_name] over [param defaults] (never mutated) and returns
 ## the merged copy; a missing directory returns the defaults. Pass only the addon's own
-## defaults. A bad file fails with [constant DotError.CODE_PARSE] or CODE_IO naming it.
+## defaults. A bad file fails with [constant GSError.CODE_PARSE] or CODE_IO naming it.
 static func load_dir(
 	addon_name: String,
 	defaults: Dictionary = {},
 	sensitive: PackedStringArray = PackedStringArray()
-) -> DotResult:
+) -> GSResult:
 	if (
 		addon_name.strip_edges().is_empty() or addon_name.contains("/") or addon_name.contains("\\")
 		or addon_name.contains(":") or addon_name.contains("..")
 	):
-		return DotResult.fail(DotError.CODE_INVALID, "Bad addon name for config: '%s'" % addon_name)
+		return GSResult.fail(GSError.CODE_INVALID, "Bad addon name for config: '%s'" % addon_name)
 
 	var merged: Dictionary = defaults.duplicate(true)
 	var files := PackedStringArray()
 	var roots := PackedStringArray()
 
-	# [dir, new_dir]: a legacy dir's file is skipped when the new dir holds it or DotCfgLegacy says no.
+	# [dir, new_dir]: a legacy dir's file is skipped when the new dir holds it or GSCfgLegacy says no.
 	var all_dirs: Array = []
 	for tier in [SUBDIR, GAME_SUBDIR, USER_SUBDIR, SERVER_SUBDIR, SERVER_GAME_SUBDIR]:
 		var news := _tier_dirs(addon_name, tier)
@@ -411,23 +411,23 @@ static func load_dir(
 		for f in DirAccess.get_files_at(dir):
 			if f.get_extension().to_lower() != EXTENSION:
 				continue
-			if new_dir != "" and DotCfgLegacy.find(dir.path_join(f), new_dir.path_join(f)) != dir.path_join(f):
+			if new_dir != "" and GSCfgLegacy.find(dir.path_join(f), new_dir.path_join(f)) != dir.path_join(f):
 				continue
 			names.append(f)
 		names.sort()
 		for f in names:
 			var path := dir.path_join(f)
-			var res := DotYaml.parse_file(path)
+			var res := GSYaml.parse_file(path)
 			if not res.ok:
-				DotLog.error(CHANNEL, "bad config file", {"addon": addon_name, "file": path})
+				GSLog.error(CHANNEL, "bad config file", {"addon": addon_name, "file": path})
 				return res.wrap("%s: config file %s" % [addon_name, f])
 			if not (res.value is Dictionary):
 				if res.value == null:
 					continue  # An empty file sets nothing.
-				var bad := DotResult.fail(
-					DotError.CODE_PARSE, "%s must hold a mapping at the top level." % path
+				var bad := GSResult.fail(
+					GSError.CODE_PARSE, "%s must hold a mapping at the top level." % path
 				)
-				DotLog.error(CHANNEL, "bad config file", {"addon": addon_name, "file": path})
+				GSLog.error(CHANNEL, "bad config file", {"addon": addon_name, "file": path})
 				return bad
 			merge(merged, res.value as Dictionary)
 			files.append(path)
@@ -437,13 +437,13 @@ static func load_dir(
 	_apply_layer(addon_name, merged, sensitive, overrides, refused)
 
 	_last[addon_name] = {"roots": roots, "files": files, "overrides": overrides, "refused": refused}
-	DotLog.debug(CHANNEL, "loaded", {"addon": addon_name, "files": files.size(), "overrides": overrides.size()})
-	return DotResult.success(merged)
+	GSLog.debug(CHANNEL, "loaded", {"addon": addon_name, "files": files.size(), "overrides": overrides.size()})
+	return GSResult.success(merged)
 
 
 ## Reads a dotted path out of a loaded config; [param default] when absent.
 static func get_value(cfg: Dictionary, path: String, default: Variant = null) -> Variant:
-	return DotYaml.at(cfg, path, default)
+	return GSYaml.at(cfg, path, default)
 
 
 ## What [method load_dir] last did for [param addon_name] (or for each addon when empty).
@@ -536,7 +536,7 @@ static func _tier_dirs(addon_name: String, tier: String, extra_dir: String = "",
 			out.append(dir)
 			if i < names.size() - 1 and not _warned_former.has(dir) and DirAccess.dir_exists_absolute(dir):
 				_warned_former[dir] = true
-				DotLog.warn(CHANNEL, "config read under a former game id", {"dir": dir, "game": game, "former": names[i]})
+				GSLog.warn(CHANNEL, "config read under a former game id", {"dir": dir, "game": game, "former": names[i]})
 	return out
 
 
@@ -623,14 +623,14 @@ static func _apply_layer(
 	for en in ambiguous:
 		if OS.has_environment(en) and not _warned_ambiguous.has(en):
 			_warned_ambiguous[en] = true
-			DotLog.warn(CHANNEL, "environment variable names two keys; applied to neither", {"addon": addon_name, "env": en})
+			GSLog.warn(CHANNEL, "environment variable names two keys; applied to neither", {"addon": addon_name, "env": en})
 
 	for path in leaves:
 		var raw: Variant = null
 		var from := ""
 		var env_key := _env_name(addon_name, path)
 		if not ambiguous.has(env_key):
-			env_key = DotConfig.gs_env_name(env_key)
+			env_key = GSConfig.gs_env_name(env_key)
 		if OS.has_environment(env_key) and not ambiguous.has(env_key):
 			raw = OS.get_environment(env_key)
 			from = "env " + env_key
@@ -650,7 +650,7 @@ static func _apply_layer(
 			continue
 		if _is_sensitive(path, sensitive):
 			refused.append("%s (%s)" % [path, from])
-			DotLog.warn(CHANNEL, "secret refused from environment/argv", {"addon": addon_name, "key": path})
+			GSLog.warn(CHANNEL, "secret refused from environment/argv", {"addon": addon_name, "key": path})
 			continue
 		var node := merged
 		var parts := path.split(".")
@@ -659,7 +659,7 @@ static func _apply_layer(
 		var key := parts[parts.size() - 1]
 		var coerced: Variant = _coerce(str(raw), node[key])
 		if coerced == null:
-			DotLog.warn(CHANNEL, "override has the wrong type", {"addon": addon_name, "key": path, "from": from})
+			GSLog.warn(CHANNEL, "override has the wrong type", {"addon": addon_name, "key": path, "from": from})
 			continue
 		node[key] = coerced
 		overrides.append("%s <- %s" % [path, from])
@@ -677,7 +677,7 @@ static func _coerce(text: String, current: Variant) -> Variant:
 			return null
 		TYPE_NIL:
 			# No type to keep: read it the way a yml file would.
-			var parsed := DotYaml.parse("v: " + text)
+			var parsed := GSYaml.parse("v: " + text)
 			if parsed.ok and parsed.value is Dictionary and (parsed.value as Dictionary).has("v"):
 				return (parsed.value as Dictionary)["v"]
 			return text

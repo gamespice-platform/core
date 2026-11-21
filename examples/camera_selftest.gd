@@ -1,6 +1,6 @@
 extends Node3D
 
-## Exercises [DotCameraProbe], [DotCameraBoom] and [DotCameraFade] in a real physics space.
+## Exercises [GSCameraProbe], [GSCameraBoom] and [GSCameraFade] in a real physics space.
 ## Every "never inside" check is armed: the same path is first flown with no probe and must put the camera inside geometry on many frames,
 ## else a path that never nears a wall passes for the one reason it could not fail.
 
@@ -16,7 +16,7 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_build_level()
 
 	# Bodies are in the broadphase after a physics step, not on the frame they were added.
@@ -117,7 +117,7 @@ func _space() -> PhysicsDirectSpaceState3D:
 
 
 func _inside(point: Vector3, radius: float) -> bool:
-	return DotCameraProbe.is_inside(_space(), point, radius, WORLD)
+	return GSCameraProbe.is_inside(_space(), point, radius, WORLD)
 
 
 # sections
@@ -125,7 +125,7 @@ func _inside(point: Vector3, radius: float) -> bool:
 func _test_wall_behind() -> void:
 	_section("A wall between the pivot and the wanted camera pulls it in")
 
-	var probe := DotCameraProbe.new(get_world_3d(), WORLD)
+	var probe := GSCameraProbe.new(get_world_3d(), WORLD)
 	var pivot := Vector3(0.0, 1.5, 0.0)
 	var wanted := Vector3(0.0, 1.5, 3.0)
 	var got := probe.resolve(pivot, wanted, 1.0 / 60.0)
@@ -140,7 +140,7 @@ func _test_wall_behind() -> void:
 func _test_gap_a_ray_slips_through() -> void:
 	_section("A slit a ray passes through does not let the camera through")
 
-	var probe := DotCameraProbe.new(get_world_3d(), WORLD)
+	var probe := GSCameraProbe.new(get_world_3d(), WORLD)
 	var pivot := Vector3(20.0, 2.015, 1.0)
 	var wanted := Vector3(20.0, 2.015, 3.0)
 
@@ -169,7 +169,7 @@ func _test_scripted_path() -> void:
 
 ## Flies the boom down the colonnade. [param look_ahead] below zero keeps the probe's own.
 func _fly(look_ahead: float) -> Dictionary:
-	var boom := DotCameraBoom.new()
+	var boom := GSCameraBoom.new()
 	boom.spring_length = 3.5
 	boom.side_offset = 0.6
 	boom.collision_mask = WORLD
@@ -254,7 +254,7 @@ func _test_boom_excludes_its_body() -> void:
 	_section("A boom hung off a body is stopped by other bodies, never by its own")
 
 	var body := _person(Vector3(-20.0, 0.0, -10.0))
-	var boom := DotCameraBoom.new()
+	var boom := GSCameraBoom.new()
 	boom.spring_length = 3.0
 	boom.collision_mask = WORLD | PEOPLE
 	boom.position = Vector3(0.0, 1.4, 0.0)
@@ -292,7 +292,7 @@ func _test_fade() -> void:
 	focus.position = Vector3(-40.0, 1.6, 0.0)
 	add_child(focus)
 
-	var fade := DotCameraFade.new()
+	var fade := GSCameraFade.new()
 	fade.collision_mask = PEOPLE
 	fade.focus = focus
 	camera.add_child(fade)
@@ -347,7 +347,7 @@ func _test_fade_without_colliders() -> void:
 	var camera := Camera3D.new()
 	camera.position = Vector3(-60.0, 1.6, 4.0)
 	add_child(camera)
-	var fade := DotCameraFade.new()
+	var fade := GSCameraFade.new()
 	var figures: Array = []
 	fade.bodies_fn = func() -> Array: return figures
 	camera.add_child(fade)
@@ -386,28 +386,28 @@ func _test_fade_without_colliders() -> void:
 func _test_clip_view() -> void:
 	_section("clip_view keeps the basis and pulls the origin in")
 
-	var probe := DotCameraProbe.new(get_world_3d(), WORLD)
+	var probe := GSCameraProbe.new(get_world_3d(), WORLD)
 	var basis := Basis(Vector3.UP, 0.7)
 	var got := probe.clip_view(Vector3(0.0, 1.5, 0.0), Transform3D(basis, Vector3(0.0, 1.5, 3.0)))
 	_check(got.basis.is_equal_approx(basis), "the basis is the one asked for")
 	_check(got.origin.z < 1.5, "the origin is in front of the wall (z %.2f)" % got.origin.z)
 	_check(not _inside(got.origin, probe.radius * 0.9), "and clear of it")
 
-	var none := DotCameraProbe.new(null, WORLD)
+	var none := GSCameraProbe.new(null, WORLD)
 	_check(none.clip_view(Vector3.ZERO, Transform3D(basis, Vector3(0, 0, 3))).origin.z == 3.0, "a probe with no world returns what it was asked")
 
 
 func _test_check_helper() -> void:
-	_section("DotCameraCheck, the games' tool, is armed")
+	_section("GSCameraCheck, the games' tool, is armed")
 
-	var near_pillars := DotCameraCheck.fly(get_world_3d(), DotCameraCheck.orbit_path(Vector3(34.0, 1.6, 1.0)), Vector3(0.45, 0.35, 2.6), WORLD)
-	_line("    " + DotCameraCheck.summary(near_pillars))
-	_check(DotCameraCheck.passed(near_pillars), "an orbit beside a pillar passes: armed and never inside")
+	var near_pillars := GSCameraCheck.fly(get_world_3d(), GSCameraCheck.orbit_path(Vector3(34.0, 1.6, 1.0)), Vector3(0.45, 0.35, 2.6), WORLD)
+	_line("    " + GSCameraCheck.summary(near_pillars))
+	_check(GSCameraCheck.passed(near_pillars), "an orbit beside a pillar passes: armed and never inside")
 
-	var open := DotCameraCheck.fly(get_world_3d(), DotCameraCheck.orbit_path(Vector3(0.0, 1.6, -30.0)), Vector3(0.45, 0.35, 2.6), WORLD)
-	_check(not DotCameraCheck.passed(open), "an orbit in the open fails: it never went near a wall, so it proved nothing")
+	var open := GSCameraCheck.fly(get_world_3d(), GSCameraCheck.orbit_path(Vector3(0.0, 1.6, -30.0)), Vector3(0.45, 0.35, 2.6), WORLD)
+	_check(not GSCameraCheck.passed(open), "an orbit in the open fails: it never went near a wall, so it proved nothing")
 
-	var found := DotCameraCheck.pivots_near_walls(get_world_3d(), AABB(Vector3(26.0, -1.0, -3.0), Vector3(40.0, 5.0, 4.0)), WORLD, 1.6, 2.0, 3.0, 10)
+	var found := GSCameraCheck.pivots_near_walls(get_world_3d(), AABB(Vector3(26.0, -1.0, -3.0), Vector3(40.0, 5.0, 4.0)), WORLD, 1.6, 2.0, 3.0, 10)
 	_check(found.size() > 0 and found.size() <= 10 and found.all(func(p: Vector3) -> bool: return not _inside(p, 0.3)), "pivots_near_walls finds clear eyes beside the colonnade (%d)" % found.size())
 
 	# The second frame of a flight is the first the probe can look ahead from (the first is a cut, with no
@@ -416,18 +416,18 @@ func _test_check_helper() -> void:
 	var behind := Vector3(0.0, 0.0, 3.0)
 	var pivot := Vector3(0.0, 1.6, 0.0)
 	var turned: Array[Transform3D] = [Transform3D(Basis(Vector3.UP, PI), pivot), Transform3D(Basis.IDENTITY, pivot), Transform3D(Basis.IDENTITY, pivot)]
-	var first_turn := DotCameraCheck.fly(get_world_3d(), turned, behind, WORLD)
+	var first_turn := GSCameraCheck.fly(get_world_3d(), turned, behind, WORLD)
 	_check(int(first_turn["snaps"]) == 0 and float(first_turn["worst_snap"]) == 0.0, "the first step after a flight starts is not a snap")
 	var later: Array[Transform3D] = [turned[0], turned[0], turned[1]]
-	var later_turn := DotCameraCheck.fly(get_world_3d(), later, behind, WORLD)
+	var later_turn := GSCameraCheck.fly(get_world_3d(), later, behind, WORLD)
 	_check(int(later_turn["snaps"]) == 1, "a turn onto a wall after the first step still counts as a snap (%.2f m)" % float(later_turn["worst_snap"]))
 
-	var total := DotCameraCheck.add(DotCameraCheck.add({}, near_pillars), open)
+	var total := GSCameraCheck.add(GSCameraCheck.add({}, near_pillars), open)
 	_check(int(total["frames"]) == int(near_pillars["frames"]) + int(open["frames"]), "flights add up")
 
 
 func _test_render_warmup() -> void:
-	_section("DotRenderWarmup collects a scene's materials and draws them out of sight")
+	_section("GSRenderWarmup collects a scene's materials and draws them out of sight")
 
 	var scene := Node3D.new()
 	var a := StandardMaterial3D.new()
@@ -447,16 +447,16 @@ func _test_render_warmup() -> void:
 	sparks.process_material = ParticleProcessMaterial.new()
 	scene.add_child(sparks)
 
-	var items := DotRenderWarmup.collect(scene)
+	var items := GSRenderWarmup.collect(scene)
 	# The box, its material, the override, and the particles' process material: each once,
 	# however many instances share it.
 	_check(items.size() == 4 and items.has(box) and items.has(a) and items.has(b), "collect finds each mesh and material once (%d)" % items.size())
-	_check(DotRenderWarmup.collect(scene, items).size() == 4, "collecting into the same list adds nothing twice")
+	_check(GSRenderWarmup.collect(scene, items).size() == 4, "collecting into the same list adds nothing twice")
 
 	var cam := Camera3D.new()
 	cam.near = 0.1
 	add_child(cam)
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.timeout_sec = 0.3
 	cam.add_child(warm)
 	warm.add_items(items)
@@ -473,7 +473,7 @@ func _test_render_warmup() -> void:
 	_check(got == 4, "finished fires even when nothing is drawn, with the count drawn")
 	await get_tree().process_frame
 	_check(not is_instance_valid(warm), "and the warmup frees itself")
-	var cut := DotRenderWarmup.new()
+	var cut := GSRenderWarmup.new()
 	cut.batch_size = 3
 	cut.timeout_sec = 0.3
 	cam.add_child(cut)
@@ -493,14 +493,14 @@ func _test_render_warmup() -> void:
 
 ## follow_camera keeps the warm-up on the viewport's camera wherever it is parented; cancel() stops it with no warning.
 func _test_render_warmup_follow_cancel() -> void:
-	_section("DotRenderWarmup follows the viewport camera and cancels silently")
+	_section("GSRenderWarmup follows the viewport camera and cancels silently")
 	var cam := Camera3D.new()
 	add_child(cam)
 	cam.make_current()
 	cam.global_position = Vector3(5, 1, 2)
 	var host := Node.new()
 	add_child(host)
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.follow_camera = true
 	warm.timeout_sec = 5.0
 	host.add_child(warm)
@@ -513,15 +513,15 @@ func _test_render_warmup_follow_cancel() -> void:
 	_check(warm.global_position.distance_to(cam.global_position) < 0.2, "and moves with the camera")
 	var seen: Array = []
 	var sink := func(rec: Dictionary) -> void: seen.append(rec)
-	DotLog.add_sink(sink)
+	GSLog.add_sink(sink)
 	_check(warm.is_running(), "it is running")
 	warm.cancel()
 	await get_tree().process_frame
-	DotLog.remove_sink(sink)
-	var warned := seen.filter(func(r: Dictionary) -> bool: return int(r["level"]) >= DotLog.Level.WARN)
+	GSLog.remove_sink(sink)
+	var warned := seen.filter(func(r: Dictionary) -> bool: return int(r["level"]) >= GSLog.Level.WARN)
 	_check(not is_instance_valid(warm) and warned.is_empty(), "cancel() frees it with no warning")
 	host.queue_free()
-	var loose := DotRenderWarmup.new()
+	var loose := GSRenderWarmup.new()
 	loose.cancel()
 	await get_tree().process_frame
 	_check(not is_instance_valid(loose), "cancel() out of the tree frees it a frame later")
@@ -530,7 +530,7 @@ func _test_render_warmup_follow_cancel() -> void:
 
 ## The dear compiles are drawn first, equal costs keep their queue order, and off keeps the queue as given.
 func _test_render_warmup_order() -> void:
-	_section("DotRenderWarmup draws the dear compiles first")
+	_section("GSRenderWarmup draws the dear compiles first")
 	var plain := StandardMaterial3D.new()
 	var lit := StandardMaterial3D.new()
 	lit.normal_enabled = true
@@ -544,10 +544,10 @@ func _test_render_warmup_order() -> void:
 	var proc := ParticleProcessMaterial.new()
 	var quad := QuadMesh.new()
 	var queue: Array = [quad, plain, shader_small, lit, proc, shader_big]
-	_check(DotRenderWarmup.item_cost(lit) > DotRenderWarmup.item_cost(plain), "a material with a normal map costs more than a plain one")
-	_check(DotRenderWarmup.item_cost(shader_big) > DotRenderWarmup.item_cost(shader_small), "a longer shader costs more")
-	_check(DotRenderWarmup.item_cost(shader_small) > DotRenderWarmup.item_cost(lit), "a shader costs more than a material")
-	var warm := DotRenderWarmup.new()
+	_check(GSRenderWarmup.item_cost(lit) > GSRenderWarmup.item_cost(plain), "a material with a normal map costs more than a plain one")
+	_check(GSRenderWarmup.item_cost(shader_big) > GSRenderWarmup.item_cost(shader_small), "a longer shader costs more")
+	_check(GSRenderWarmup.item_cost(shader_small) > GSRenderWarmup.item_cost(lit), "a shader costs more than a material")
+	var warm := GSRenderWarmup.new()
 	warm.dedupe = false
 	warm.dear_first = true
 	warm.first_batch = 100
@@ -562,13 +562,13 @@ func _test_render_warmup_order() -> void:
 	var last := INF
 	for child in order:
 		var item: Variant = (child as MeshInstance3D).material_override if (child is MeshInstance3D and (child as MeshInstance3D).material_override != null) else (child as MeshInstance3D).mesh if child is MeshInstance3D else (child as GPUParticles3D).process_material
-		var c := DotRenderWarmup.item_cost(item)
+		var c := GSRenderWarmup.item_cost(item)
 		if c > last:
 			cost_order = false
 		last = c
 	_check(order.size() == 6 and cost_order, "placed in falling cost (%d items)" % order.size())
 	await warm.finished
-	var off := DotRenderWarmup.new()
+	var off := GSRenderWarmup.new()
 	off.dedupe = false
 	off.timeout_sec = 0.1
 	add_child(off)
@@ -580,7 +580,7 @@ func _test_render_warmup_order() -> void:
 
 ## Items that compile one pipeline are queued once; distinct pipelines all stay.
 func _test_render_warmup_dedupe() -> void:
-	_section("DotRenderWarmup queues one item per pipeline")
+	_section("GSRenderWarmup queues one item per pipeline")
 	var plain: Array = []
 	for i in 6:
 		var m := StandardMaterial3D.new()
@@ -609,7 +609,7 @@ func _test_render_warmup_dedupe() -> void:
 	box_t.material = trans
 	var all: Array = plain + [trans, textured, sm_a, sm_b, sm_c, box_a, box_b, box_t] + particles
 
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.add_items(all)
 	# plain x6 -> 1, trans, textured, sm_a/sm_b -> 1, sm_c, box_a/box_b -> 1, box_t; the particles are kept (2)
 	_check(warm.item_count() == 1 + 1 + 1 + 1 + 1 + 1 + 1 + 2, "%d items queue as %d pipelines" % [all.size(), warm.item_count()])
@@ -617,12 +617,12 @@ func _test_render_warmup_dedupe() -> void:
 	_check(warm._items.has(plain[0]) and not warm._items.has(plain[1]), "the first of a pipeline is the one kept")
 	_check(warm._items.has(trans) and warm._items.has(textured) and warm._items.has(sm_c) and warm._items.has(box_t), "distinct pipelines are kept")
 	warm.free()
-	var off := DotRenderWarmup.new()
+	var off := GSRenderWarmup.new()
 	off.dedupe = false
 	off.add_items(all)
 	_check(off.item_count() == all.size() and off.skipped_count() == 0, "dedupe off keeps every item (%d)" % off.item_count())
 	off.free()
-	var again := DotRenderWarmup.new()
+	var again := GSRenderWarmup.new()
 	again.add_items(plain)
 	again.add_items(plain)
 	_check(again.item_count() == 1, "a second add of the same items adds nothing")
@@ -649,14 +649,14 @@ func _test_render_warmup_dedupe_meshes() -> void:
 		am.surface_set_material(0, mat)
 		meshes.append(am)
 	var copy := meshes[0].duplicate() as ArrayMesh
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.add_items(meshes + [copy])
 	_check(warm.item_count() == 3, "plain, vertex colour and blend shape meshes stay apart; a copy merges (%d)" % warm.item_count())
 	warm.free()
 	var prim_a := BoxMesh.new()
 	var prim_b := BoxMesh.new()
 	prim_b.add_uv2 = true
-	var warm_p := DotRenderWarmup.new()
+	var warm_p := GSRenderWarmup.new()
 	warm_p.add_items([prim_a, prim_b])
 	_check(warm_p.item_count() == 2, "primitive meshes filling different arrays stay apart")
 	warm_p.free()
@@ -667,14 +667,14 @@ func _render_warmup_paced(cam: Camera3D) -> void:
 	var mats: Array = []
 	for i in 40:
 		mats.append(StandardMaterial3D.new())
-	var paced := DotRenderWarmup.new()
+	var paced := GSRenderWarmup.new()
 	paced.dedupe = false  # forty identical materials, to be sized, not merged
 	paced.budget_msec = 40.0
 	paced.timeout_sec = 0.3
 	cam.add_child(paced)
 	paced.add_items(mats)
 	paced.start()
-	_check(paced.get_child_count() == DotRenderWarmup.FIRST_BATCH, "a budgeted warm-up starts with a small round (%d up)" % paced.get_child_count())
+	_check(paced.get_child_count() == GSRenderWarmup.FIRST_BATCH, "a budgeted warm-up starts with a small round (%d up)" % paced.get_child_count())
 	# 16 items drew in a 26 ms frame where an empty one takes 10: 1 ms each, 30 ms of room.
 	paced._round_placed = 16
 	paced._base_usec = 10000
@@ -683,7 +683,7 @@ func _render_warmup_paced(cam: Camera3D) -> void:
 	_check(paced._cap == 30, "the next round is sized from the measured cost per item (%d)" % paced._cap)
 	paced._first_cost_usec = 900000
 	paced._resize()
-	_check(paced._cap == DotRenderWarmup.MIN_BATCH, "a round far over budget shrinks the next to the floor (%d)" % paced._cap)
+	_check(paced._cap == GSRenderWarmup.MIN_BATCH, "a round far over budget shrinks the next to the floor (%d)" % paced._cap)
 	# 16 cheap items right after that: their mean says 30000 more, but the dear item is remembered, halving per round.
 	paced._first_cost_usec = 10100
 	paced._resize()
@@ -697,14 +697,14 @@ func _render_warmup_paced(cam: Camera3D) -> void:
 	for i in 8:
 		paced._resize()
 	_check(paced._cap == 1 and paced._dear_usec == 55000.0, "dear_decay 1 holds the dear item: rounds stay at one (%d)" % paced._cap)
-	paced.dear_decay = DotRenderWarmup.DEAR_DECAY
+	paced.dear_decay = GSRenderWarmup.DEAR_DECAY
 	paced._dear_usec = 0.0
 	paced._resize()
 	_check(paced._cap == 32, "a cheap round grows the next at most by growth, twofold (%d)" % paced._cap)
 	paced.growth = 0.0
 	paced._resize()
 	_check(paced._cap == paced.batch_size, "growth 0 is no limit: batch_size is the only one (%d)" % paced._cap)
-	paced.growth = DotRenderWarmup.GROWTH
+	paced.growth = GSRenderWarmup.GROWTH
 	# Bare frames of 60 ms against a 40 ms budget: the warm-up still gets half the budget, not one item a round.
 	paced._base_usec = 60000
 	paced._round_placed = 1
@@ -733,7 +733,7 @@ func _test_render_warmup_many_surfaces() -> void:
 		big.surface_set_material(i, mats[i % 3])
 	var cam2 := Camera3D.new()
 	add_child(cam2)
-	var warm2 := DotRenderWarmup.new()
+	var warm2 := GSRenderWarmup.new()
 	warm2.dedupe = false  # the proxy cache is under test, not the item key
 	warm2.timeout_sec = 0.3
 	cam2.add_child(warm2)
@@ -762,18 +762,18 @@ func _section(title: String) -> void:
 
 
 func _test_view_lens() -> void:
-	_section("DotViewLens draws a held model at its own lens")
+	_section("GSViewLens draws a held model at its own lens")
 
-	_check(absf(DotViewLens.vertical_from_horizontal_4_3(100.0) - 83.6) < 0.1, "100 degrees across 4:3 is about 83.6 vertical")
-	_check(is_equal_approx(DotViewLens.lens_scale(70.0, 70.0), 1.0), "the same lens is a scale of 1")
-	_check(DotViewLens.lens_scale(80.0, 0.0) == 1.0, "an unusable lens is a scale of 1")
+	_check(absf(GSViewLens.vertical_from_horizontal_4_3(100.0) - 83.6) < 0.1, "100 degrees across 4:3 is about 83.6 vertical")
+	_check(is_equal_approx(GSViewLens.lens_scale(70.0, 70.0), 1.0), "the same lens is a scale of 1")
+	_check(GSViewLens.lens_scale(80.0, 0.0) == 1.0, "an unusable lens is a scale of 1")
 	var cam := Camera3D.new()
 	cam.fov = 90.0
 	var model := Node3D.new()
-	DotViewLens.apply(model, cam, 60.0, 1.0, 0.05)
-	var k := DotViewLens.lens_scale(90.0, 60.0)
+	GSViewLens.apply(model, cam, 60.0, 1.0, 0.05)
+	var k := GSViewLens.lens_scale(90.0, 60.0)
 	_check(is_equal_approx(model.scale.x, k) and model.scale.z == 1.0, "apply scales X and Y by the lens")
-	_check(is_equal_approx(model.position.z, -(k - 1.0) * DotViewLens.REFERENCE_DEPTH + 0.05), "and pulls it in, then adds the extra")
+	_check(is_equal_approx(model.position.z, -(k - 1.0) * GSViewLens.REFERENCE_DEPTH + 0.05), "and pulls it in, then adds the extra")
 	cam.free()
 	model.free()
 

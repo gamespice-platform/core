@@ -1,7 +1,7 @@
 extends Node
 
 ## Exercises the Gamespice spelling of environment variables: for any [code]DOT_X[/code] the engine reads,
-## [code]GS_X[/code] is read first and the old name keeps working ([method DotConfig.gs_env_name]).
+## [code]GS_X[/code] is read first and the old name keeps working ([method GSConfig.gs_env_name]).
 
 const SECTIONS := 3
 const CHECKS := 15
@@ -30,26 +30,26 @@ func _ready() -> void:
 func _test_names() -> void:
 	_section("GS_X is read first, DOT_X still works")
 	_unset(["DOT_GS_SELFTEST_A", "GS_GS_SELFTEST_A"])
-	_check(DotConfig.gs_env_name("DOT_GS_SELFTEST_A") == "DOT_GS_SELFTEST_A", "with neither set the old name is kept")
+	_check(GSConfig.gs_env_name("DOT_GS_SELFTEST_A") == "DOT_GS_SELFTEST_A", "with neither set the old name is kept")
 	OS.set_environment("DOT_GS_SELFTEST_A", "old")
-	_check(DotConfig.gs_env("DOT_GS_SELFTEST_A") == "old", "the old name alone is read")
-	var warned := DotConfig.deprecated_env_warned()
+	_check(GSConfig.gs_env("DOT_GS_SELFTEST_A") == "old", "the old name alone is read")
+	var warned := GSConfig.deprecated_env_warned()
 	_check(warned >= 1, "reading the old name alone logs a deprecation warning")
-	DotConfig.gs_env("DOT_GS_SELFTEST_A")
-	_check(DotConfig.deprecated_env_warned() == warned, "and only once per name")
+	GSConfig.gs_env("DOT_GS_SELFTEST_A")
+	_check(GSConfig.deprecated_env_warned() == warned, "and only once per name")
 	OS.set_environment("GS_GS_SELFTEST_A", "new")
-	_check(DotConfig.gs_env_name("DOT_GS_SELFTEST_A") == "GS_GS_SELFTEST_A", "the GS name is chosen when set")
-	_check(DotConfig.gs_env("DOT_GS_SELFTEST_A") == "new", "and its value wins over the old one")
-	_check(DotConfig.deprecated_env_warned() == warned, "setting the GS name logs nothing further")
+	_check(GSConfig.gs_env_name("DOT_GS_SELFTEST_A") == "GS_GS_SELFTEST_A", "the GS name is chosen when set")
+	_check(GSConfig.gs_env("DOT_GS_SELFTEST_A") == "new", "and its value wins over the old one")
+	_check(GSConfig.deprecated_env_warned() == warned, "setting the GS name logs nothing further")
 	OS.set_environment("SELFTEST_PLAIN", "p")
-	_check(DotConfig.gs_env_name("SELFTEST_PLAIN") == "SELFTEST_PLAIN" and DotConfig.gs_env("SELFTEST_PLAIN") == "p", "a name without DOT_ is untouched")
+	_check(GSConfig.gs_env_name("SELFTEST_PLAIN") == "SELFTEST_PLAIN" and GSConfig.gs_env("SELFTEST_PLAIN") == "p", "a name without DOT_ is untouched")
 	_unset(["DOT_GS_SELFTEST_A", "GS_GS_SELFTEST_A", "SELFTEST_PLAIN"])
 
 
 func _test_config() -> void:
-	_section("DotConfig.apply_env takes either spelling")
+	_section("GSConfig.apply_env takes either spelling")
 	_unset(["DOT_RANDOM_MASTER_SEED", "GS_RANDOM_MASTER_SEED"])
-	var cfg := DotRandomConfig.new()
+	var cfg := GSRandomConfig.new()
 	OS.set_environment("DOT_RANDOM_MASTER_SEED", "5")
 	cfg.apply_env()
 	_check(cfg.master_seed == 5, "DOT_RANDOM_MASTER_SEED still applies")
@@ -57,27 +57,27 @@ func _test_config() -> void:
 	cfg.apply_env()
 	_check(cfg.master_seed == 9, "GS_RANDOM_MASTER_SEED wins when both are set")
 	OS.unset_environment("DOT_RANDOM_MASTER_SEED")
-	cfg = DotRandomConfig.new()
+	cfg = GSRandomConfig.new()
 	cfg.apply_env()
 	_check(cfg.master_seed == 9, "GS_RANDOM_MASTER_SEED alone applies")
 	_unset(["DOT_RANDOM_MASTER_SEED", "GS_RANDOM_MASTER_SEED"])
 
 
 func _test_addon_config() -> void:
-	_section("DotAddonConfig reads GS_ for a dot_ addon")
+	_section("GSAddonConfig reads GS_ for a dot_ addon")
 	var dot_key := "DOT_GS_ENV_SELFTEST_SPEED"
 	var gs_key := "GS_GS_ENV_SELFTEST_SPEED"
 	_unset([dot_key, gs_key])
-	var res := DotAddonConfig.load_dir(ADDON, {"speed": 1})
+	var res := GSAddonConfig.load_dir(ADDON, {"speed": 1})
 	_check(res.ok and (res.value as Dictionary)["speed"] == 1, "with neither set the default stands")
 	OS.set_environment(dot_key, "2")
-	res = DotAddonConfig.load_dir(ADDON, {"speed": 1})
+	res = GSAddonConfig.load_dir(ADDON, {"speed": 1})
 	_check(res.ok and (res.value as Dictionary)["speed"] == 2, "the old DOT_ variable applies")
 	OS.set_environment(gs_key, "3")
-	res = DotAddonConfig.load_dir(ADDON, {"speed": 1})
+	res = GSAddonConfig.load_dir(ADDON, {"speed": 1})
 	_check(res.ok and (res.value as Dictionary)["speed"] == 3, "the GS_ variable wins")
 	OS.unset_environment(dot_key)
-	res = DotAddonConfig.load_dir(ADDON, {"speed": 1})
+	res = GSAddonConfig.load_dir(ADDON, {"speed": 1})
 	_check(res.ok and (res.value as Dictionary)["speed"] == 3, "the GS_ variable alone applies")
 	_unset([dot_key, gs_key])
 

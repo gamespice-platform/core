@@ -1,11 +1,11 @@
-class_name DotPaths
+class_name GSPaths
 extends RefCounted
 
 ## Filesystem helpers with the cross-platform sharp edges handled.
 ## Web needs an explicit flush (every write helper syncs); server-supplied paths are attacker-controlled ([method safe_relative]);
 ## and [code]user://[/code] is not a disk path on mobile or web, so never hand it to an OS call.
 
-# No log channel: static filesystem helpers returning a DotResult. The caller knows what
+# No log channel: static filesystem helpers returning a GSResult. The caller knows what
 # the file was for and whether its absence matters -- a missing bindings file is normal,
 # a missing ban list is not -- and this class cannot tell those apart.
 
@@ -26,13 +26,13 @@ const ILLEGAL_CHARS := "\\:*?\"<>|"
 ## Validates a relative path from an untrusted source and returns it normalised.
 ## Fails rather than guess: rewriting [code]../../etc/passwd[/code] would write an attacker's file somewhere valid.
 ## Refused: absolute, [code]..[/code], drive letters, control chars, reserved device names, trailing dots or spaces, over-length.
-static func safe_relative(path: String, max_length: int = 1024) -> DotResult:
+static func safe_relative(path: String, max_length: int = 1024) -> GSResult:
 	if path.is_empty():
-		return DotResult.fail(DotError.CODE_INVALID, "Empty path.")
+		return GSResult.fail(GSError.CODE_INVALID, "Empty path.")
 
 	if path.length() > max_length:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Path is too long.",
 			"%d > %d" % [path.length(), max_length]
 		)
@@ -42,21 +42,21 @@ static func safe_relative(path: String, max_length: int = 1024) -> DotResult:
 	var p := path.replace("\\", "/")
 
 	if p.begins_with("/"):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Path must be relative.", path
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Path must be relative.", path
 		)
 
 	# A Godot scheme or a Windows drive letter both mean "not relative".
 	if p.contains("://") or (p.length() >= 2 and p[1] == ":"):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Path must be relative.", path
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Path must be relative.", path
 		)
 
 	for i in range(p.length()):
 		var c := p.unicode_at(i)
 		if c < 32 or c == 127:
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"Path contains a control character.",
 				path
 			)
@@ -71,38 +71,38 @@ static func safe_relative(path: String, max_length: int = 1024) -> DotResult:
 		out.append(seg)
 
 	if out.is_empty():
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Path resolves to nothing.", path
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Path resolves to nothing.", path
 		)
 
-	return DotResult.success("/".join(out))
+	return GSResult.success("/".join(out))
 
 
 ## One path segment against traversal, illegal characters, Windows drop rules and reserved names.
-static func _check_segment(seg: String, path: String) -> DotResult:
+static func _check_segment(seg: String, path: String) -> GSResult:
 	if seg == "..":
-		return DotResult.fail(DotError.CODE_INVALID, "Path traversal is not allowed.", path)
+		return GSResult.fail(GSError.CODE_INVALID, "Path traversal is not allowed.", path)
 
 	for ch in ILLEGAL_CHARS:
 		if seg.contains(ch):
-			return DotResult.fail(
-				DotError.CODE_INVALID, "Path contains an illegal character '%s'." % ch, path
+			return GSResult.fail(
+				GSError.CODE_INVALID, "Path contains an illegal character '%s'." % ch, path
 			)
 
 	# Windows drops trailing dots and spaces, so "a." and "a" would collide.
 	if seg.ends_with(".") or seg.ends_with(" ") or seg.begins_with(" "):
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Path segment has leading or trailing whitespace or a trailing dot.",
 			path
 		)
 
 	var stem := seg.get_basename().to_upper()
 	if WINDOWS_RESERVED.has(stem):
-		return DotResult.fail(
-			DotError.CODE_INVALID, "Path uses the reserved device name '%s'." % stem, path
+		return GSResult.fail(
+			GSError.CODE_INVALID, "Path uses the reserved device name '%s'." % stem, path
 		)
-	return DotResult.success(seg)
+	return GSResult.success(seg)
 
 
 ## Rewrites a string so it is safe as a single filename component.
@@ -131,37 +131,37 @@ static func slugify(s: String, max_length: int = 64) -> String:
 
 
 ## Creates a directory and every missing parent.
-static func ensure_dir(path: String) -> DotResult:
+static func ensure_dir(path: String) -> GSResult:
 	if DirAccess.dir_exists_absolute(path):
-		return DotResult.success(path)
+		return GSResult.success(path)
 
 	var err := DirAccess.make_dir_recursive_absolute(path)
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(err, "creating directory '%s'" % path)
+		return GSResult.failure(
+			GSError.from_engine(err, "creating directory '%s'" % path)
 		)
 
-	return DotResult.success(path)
+	return GSResult.success(path)
 
 
 ## Creates the parent directory of a file path.
-static func ensure_parent_dir(file_path: String) -> DotResult:
+static func ensure_parent_dir(file_path: String) -> GSResult:
 	return ensure_dir(file_path.get_base_dir())
 
 
 ## Removes a directory and everything under it, depth-first.
 ## Reports the first failure but keeps going, so one locked file does not leave a cache behind.
-static func remove_tree(path: String) -> DotResult:
+static func remove_tree(path: String) -> GSResult:
 	if not DirAccess.dir_exists_absolute(path):
-		return DotResult.success(0)
+		return GSResult.success(0)
 
 	var removed := 0
-	var first_error: DotError = null
+	var first_error: GSError = null
 
 	var dir := DirAccess.open(path)
 	if dir == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				DirAccess.get_open_error(), "opening '%s'" % path
 			)
 		)
@@ -181,19 +181,19 @@ static func remove_tree(path: String) -> DotResult:
 			if err == OK:
 				removed += 1
 			elif first_error == null:
-				first_error = DotError.from_engine(err, "removing '%s'" % child)
+				first_error = GSError.from_engine(err, "removing '%s'" % child)
 		name = dir.get_next()
 	dir.list_dir_end()
 
 	var err2 := DirAccess.remove_absolute(path)
 	if err2 != OK and first_error == null:
-		first_error = DotError.from_engine(err2, "removing '%s'" % path)
+		first_error = GSError.from_engine(err2, "removing '%s'" % path)
 
-	DotWeb.sync_filesystem()
+	GSWeb.sync_filesystem()
 
 	if first_error != null:
-		return DotResult.failure(first_error)
-	return DotResult.success(removed)
+		return GSResult.failure(first_error)
+	return GSResult.success(removed)
 
 
 ## Every file under [param path], as paths relative to it.
@@ -224,34 +224,34 @@ static func list_files_recursive(
 
 
 
-static func read_bytes(path: String) -> DotResult:
+static func read_bytes(path: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(
-			DotError.CODE_IO, "File not found.", path
+		return GSResult.fail(
+			GSError.CODE_IO, "File not found.", path
 		)
 
 	var f := FileAccess.open(path, FileAccess.READ)
 	if f == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				FileAccess.get_open_error(), "opening '%s'" % path
 			)
 		)
 
 	var bytes := f.get_buffer(f.get_length())
 	f.close()
-	return DotResult.success(bytes)
+	return GSResult.success(bytes)
 
 
-static func read_text(path: String) -> DotResult:
+static func read_text(path: String) -> GSResult:
 	var res := read_bytes(path)
 	if not res.ok:
 		return res
 	var bytes: PackedByteArray = res.value
-	return DotResult.success(bytes.get_string_from_utf8())
+	return GSResult.success(bytes.get_string_from_utf8())
 
 
-static func read_json(path: String) -> DotResult:
+static func read_json(path: String) -> GSResult:
 	var res := read_text(path)
 	if not res.ok:
 		return res
@@ -260,18 +260,18 @@ static func read_json(path: String) -> DotResult:
 	var json := JSON.new()
 	var err := json.parse(text)
 	if err != OK:
-		return DotResult.fail(
-			DotError.CODE_PARSE,
+		return GSResult.fail(
+			GSError.CODE_PARSE,
 			"Malformed JSON in '%s'." % path,
 			"line %d: %s" % [json.get_error_line(), json.get_error_message()]
 		)
 
-	return DotResult.success(json.data)
+	return GSResult.success(json.data)
 
 
 ## Appends bytes to a file, creating it if absent.
 ## For a resumed download: WRITE would truncate the head already on disk. No [param atomic]: the file is hash-verified before use.
-static func append_bytes(path: String, bytes: PackedByteArray) -> DotResult:
+static func append_bytes(path: String, bytes: PackedByteArray) -> GSResult:
 	var parent := ensure_parent_dir(path)
 	if not parent.ok:
 		return parent
@@ -282,7 +282,7 @@ static func append_bytes(path: String, bytes: PackedByteArray) -> DotResult:
 	)
 
 	if f == null:
-		return DotResult.failure(DotError.from_engine(
+		return GSResult.failure(GSError.from_engine(
 			FileAccess.get_open_error(), "opening '%s' to append to" % path
 		))
 
@@ -290,9 +290,9 @@ static func append_bytes(path: String, bytes: PackedByteArray) -> DotResult:
 	f.store_buffer(bytes)
 	f.close()
 
-	DotWeb.sync_filesystem()
+	GSWeb.sync_filesystem()
 
-	return DotResult.success(file_size(path))
+	return GSResult.success(file_size(path))
 
 
 ## Writes bytes, creating parents and flushing the web filesystem.
@@ -301,7 +301,7 @@ static func write_bytes(
 	path: String,
 	bytes: PackedByteArray,
 	atomic: bool = true
-) -> DotResult:
+) -> GSResult:
 	var parent := ensure_parent_dir(path)
 	if not parent.ok:
 		return parent
@@ -310,8 +310,8 @@ static func write_bytes(
 
 	var f := FileAccess.open(target, FileAccess.WRITE)
 	if f == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				FileAccess.get_open_error(), "opening '%s' for write" % target
 			)
 		)
@@ -322,8 +322,8 @@ static func write_bytes(
 	if atomic:
 		var dir := DirAccess.open(path.get_base_dir())
 		if dir == null:
-			return DotResult.failure(
-				DotError.from_engine(
+			return GSResult.failure(
+				GSError.from_engine(
 					DirAccess.get_open_error(),
 					"opening '%s'" % path.get_base_dir()
 				)
@@ -333,19 +333,19 @@ static func write_bytes(
 			dir.remove(path.get_file())
 		var err := dir.rename(target.get_file(), path.get_file())
 		if err != OK:
-			return DotResult.failure(
-				DotError.from_engine(err, "renaming '%s'" % target)
+			return GSResult.failure(
+				GSError.from_engine(err, "renaming '%s'" % target)
 			)
 
-	DotWeb.sync_filesystem()
-	return DotResult.success(bytes.size())
+	GSWeb.sync_filesystem()
+	return GSResult.success(bytes.size())
 
 
 static func write_text(
 	path: String,
 	text: String,
 	atomic: bool = true
-) -> DotResult:
+) -> GSResult:
 	return write_bytes(path, text.to_utf8_buffer(), atomic)
 
 
@@ -354,7 +354,7 @@ static func write_json(
 	data: Variant,
 	pretty: bool = true,
 	atomic: bool = true
-) -> DotResult:
+) -> GSResult:
 	var text := JSON.stringify(data, "\t" if pretty else "")
 	return write_text(path, text, atomic)
 
@@ -365,7 +365,7 @@ static func write_encrypted(
 	path: String,
 	bytes: PackedByteArray,
 	passphrase: String
-) -> DotResult:
+) -> GSResult:
 	var parent := ensure_parent_dir(path)
 	if not parent.ok:
 		return parent
@@ -374,8 +374,8 @@ static func write_encrypted(
 		path, FileAccess.WRITE, passphrase
 	)
 	if f == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				FileAccess.get_open_error(),
 				"opening '%s' for encrypted write" % path
 			)
@@ -384,29 +384,29 @@ static func write_encrypted(
 	f.store_buffer(bytes)
 	f.close()
 
-	DotWeb.sync_filesystem()
-	return DotResult.success(bytes.size())
+	GSWeb.sync_filesystem()
+	return GSResult.success(bytes.size())
 
 
 ## Reads a file written by [method write_encrypted].
 ## A wrong passphrase and a corrupt file both fail to open; callers treat that as "no stored credential" and re-authenticate.
-static func read_encrypted(path: String, passphrase: String) -> DotResult:
+static func read_encrypted(path: String, passphrase: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(DotError.CODE_IO, "File not found.", path)
+		return GSResult.fail(GSError.CODE_IO, "File not found.", path)
 
 	var f := FileAccess.open_encrypted_with_pass(
 		path, FileAccess.READ, passphrase
 	)
 	if f == null:
-		return DotResult.fail(
-			DotError.CODE_INTEGRITY,
+		return GSResult.fail(
+			GSError.CODE_INTEGRITY,
 			"Could not decrypt '%s'." % path,
 			"wrong key or corrupt file"
 		)
 
 	var bytes := f.get_buffer(f.get_length())
 	f.close()
-	return DotResult.success(bytes)
+	return GSResult.success(bytes)
 
 
 ## Appends one file onto another without reading either into memory.
@@ -417,14 +417,14 @@ static func append_file(
 	src_path: String,
 	at_offset: int = -1,
 	chunk_bytes: int = 1 << 20
-) -> DotResult:
+) -> GSResult:
 	var parent := ensure_parent_dir(dest_path)
 	if not parent.ok:
 		return parent
 
 	var src := FileAccess.open(src_path, FileAccess.READ)
 	if src == null:
-		return DotResult.failure(DotError.from_engine(
+		return GSResult.failure(GSError.from_engine(
 			FileAccess.get_open_error(), "opening '%s' for read" % src_path
 		))
 
@@ -437,7 +437,7 @@ static func append_file(
 	)
 	if dst == null:
 		src.close()
-		return DotResult.failure(DotError.from_engine(
+		return GSResult.failure(GSError.from_engine(
 			FileAccess.get_open_error(), "opening '%s' to append to" % dest_path
 		))
 
@@ -446,8 +446,8 @@ static func append_file(
 		# has mismatched its own bookkeeping; say so rather than write garbage.
 		src.close()
 		dst.close()
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"Cannot append past the end of the destination.",
 			"offset %d, '%s' is %d bytes" % [at_offset, dest_path, max(existing, 0)]
 		)
@@ -474,20 +474,20 @@ static func append_file(
 	dst.close()
 
 	if err != OK and err != ERR_FILE_EOF:
-		return DotResult.failure(
-			DotError.from_engine(err, "appending to '%s'" % dest_path)
+		return GSResult.failure(
+			GSError.from_engine(err, "appending to '%s'" % dest_path)
 		)
 
-	DotWeb.sync_filesystem()
-	return DotResult.success(written)
+	GSWeb.sync_filesystem()
+	return GSResult.success(written)
 
 
 ## Replaces [param dest_path] with [param src_path], removing the source.
 ## A rename, not a copy, so a large finished download costs nothing.
-static func replace_file(dest_path: String, src_path: String) -> DotResult:
+static func replace_file(dest_path: String, src_path: String) -> GSResult:
 	var dir := DirAccess.open(src_path.get_base_dir())
 	if dir == null:
-		return DotResult.failure(DotError.from_engine(
+		return GSResult.failure(GSError.from_engine(
 			DirAccess.get_open_error(), "opening '%s'" % src_path.get_base_dir()
 		))
 
@@ -497,12 +497,12 @@ static func replace_file(dest_path: String, src_path: String) -> DotResult:
 
 	var err := dir.rename(src_path, dest_path)
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(err, "renaming '%s'" % src_path)
+		return GSResult.failure(
+			GSError.from_engine(err, "renaming '%s'" % src_path)
 		)
 
-	DotWeb.sync_filesystem()
-	return DotResult.success(file_size(dest_path))
+	GSWeb.sync_filesystem()
+	return GSResult.success(file_size(dest_path))
 
 
 static func file_size(path: String) -> int:
@@ -536,6 +536,6 @@ static func format_bytes(n: int) -> String:
 ## On web it is a virtual path with no disk, hence labelled.
 static func describe_user_dir() -> String:
 	var base := OS.get_user_data_dir()
-	if DotPlatform.is_web():
+	if GSPlatform.is_web():
 		return "%s (browser storage — not a real directory)" % base
 	return base

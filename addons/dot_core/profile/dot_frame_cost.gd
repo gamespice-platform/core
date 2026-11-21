@@ -1,9 +1,9 @@
-class_name DotFrameCost
+class_name GSFrameCost
 extends RefCounted
 
 ## What each system cost this frame, reported by the systems, so a slow frame is pinned on one. Off by default and free while off.
-## [code]var t := DotFrameCost.now()[/code] (0 while disabled), then [code]DotFrameCost.add(&"navigation", t, "note")[/code].
-## One reader drains it per frame with [method take] (DotHitchLog does); only plain values are kept, since a script object in a static aborts teardown.
+## [code]var t := GSFrameCost.now()[/code] (0 while disabled), then [code]GSFrameCost.add(&"navigation", t, "note")[/code].
+## One reader drains it per frame with [method take] (GSHitchLog does); only plain values are kept, since a script object in a static aborts teardown.
 
 ## Set by the profiler; systems only ever call [method now] and [method add].
 static var enabled := false
@@ -134,4 +134,4 @@ static func reset() -> void:
 
 
 static func describe() -> String:
-	return "DotFrameCost enabled=%s trace=%s pending=%d events=%d" % [enabled, trace, _rows.size(), _events.size() / 3]
+	return "GSFrameCost enabled=%s trace=%s pending=%d events=%d" % [enabled, trace, _rows.size(), _events.size() / 3]

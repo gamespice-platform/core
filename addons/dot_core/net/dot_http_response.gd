@@ -1,7 +1,7 @@
-class_name DotHttpResponse
+class_name GSHttpResponse
 extends RefCounted
 
-## What a [DotHttpServer] route returns: a status, headers and a body.
+## What a [GSHttpServer] route returns: a status, headers and a body.
 
 const REASONS := {
 	200: "OK", 204: "No Content", 301: "Moved Permanently", 302: "Found", 304: "Not Modified",
@@ -18,8 +18,8 @@ var headers: Dictionary = {}
 var body := PackedByteArray()
 
 
-static func make(p_status: int, p_body: PackedByteArray = PackedByteArray(), content_type: String = "") -> DotHttpResponse:
-	var r := DotHttpResponse.new()
+static func make(p_status: int, p_body: PackedByteArray = PackedByteArray(), content_type: String = "") -> GSHttpResponse:
+	var r := GSHttpResponse.new()
 	r.status = p_status
 	r.body = p_body
 	if not content_type.is_empty():
@@ -27,21 +27,21 @@ static func make(p_status: int, p_body: PackedByteArray = PackedByteArray(), con
 	return r
 
 
-static func text(p_status: int, s: String, content_type: String = "text/plain; charset=utf-8") -> DotHttpResponse:
+static func text(p_status: int, s: String, content_type: String = "text/plain; charset=utf-8") -> GSHttpResponse:
 	return make(p_status, s.to_utf8_buffer(), content_type)
 
 
 ## Serialises [param data] (anything JSON can hold) as the body.
-static func json(data: Variant, p_status: int = 200) -> DotHttpResponse:
+static func json(data: Variant, p_status: int = 200) -> GSHttpResponse:
 	return text(p_status, JSON.stringify(data), "application/json; charset=utf-8")
 
 
-static func html(s: String, p_status: int = 200) -> DotHttpResponse:
+static func html(s: String, p_status: int = 200) -> GSHttpResponse:
 	return text(p_status, s, "text/html; charset=utf-8")
 
 
 ## A plain error page for [param p_status].
-static func error(p_status: int, detail: String = "") -> DotHttpResponse:
+static func error(p_status: int, detail: String = "") -> GSHttpResponse:
 	var msg := "%d %s" % [p_status, REASONS.get(p_status, "Error")]
 	return text(p_status, msg if detail.is_empty() else msg + "\n" + detail + "\n")
 

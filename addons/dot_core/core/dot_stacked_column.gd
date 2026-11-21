@@ -1,4 +1,4 @@
-class_name DotStackedColumn
+class_name GSStackedColumn
 extends RefCounted
 
 ## One column of a solid stacked chart, drawn into a [CanvasItem] from inside its `_draw`. The shared piece of the profiler's

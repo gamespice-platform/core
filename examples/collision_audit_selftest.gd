@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotCollisionAudit] on hand-built trees: what it must report, what it must not, and the opt-out. No physics space needed.
+## Exercises [GSCollisionAudit] on hand-built trees: what it must report, what it must not, and the opt-out. No physics space needed.
 
 const SECTIONS := 8
 const CHECKS := 30
@@ -11,7 +11,7 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_line("dot-core collision audit self-test")
 	_test_meshes()
 	_test_bodies_that_do_not_cover()
@@ -53,7 +53,7 @@ func _body(name: String, shaped := true) -> StaticBody3D:
 
 
 func _found(root: Node) -> PackedStringArray:
-	var res := DotCollisionAudit.audit(root)
+	var res := GSCollisionAudit.audit(root)
 	return res.value.paths() if res.ok else PackedStringArray(["<failed>"])
 
 
@@ -208,8 +208,8 @@ func _test_skipped() -> void:
 	nomesh.name = "NoMesh"
 	root.add_child(nomesh)
 	_check(_found(root).is_empty(), "nothing under an invisible node, a character, a rigid body, a shadow caster or an empty mesh")
-	var bad := DotCollisionAudit.audit(null)
-	_check(not bad.ok and bad.error.code == DotError.CODE_INVALID, "a null root is CODE_INVALID")
+	var bad := GSCollisionAudit.audit(null)
+	_check(not bad.ok and bad.error.code == GSError.CODE_INVALID, "a null root is CODE_INVALID")
 	root.free()
 
 
@@ -218,7 +218,7 @@ func _test_opt_out() -> void:
 	var root := Node3D.new()
 	var by_meta := Node3D.new()
 	by_meta.name = "Deco"
-	by_meta.set_meta(DotCollisionAudit.META, true)
+	by_meta.set_meta(GSCollisionAudit.META, true)
 	by_meta.add_child(_mesh("Flag"))
 	var deep := Node3D.new()
 	deep.name = "Deep"
@@ -228,13 +228,13 @@ func _test_opt_out() -> void:
 	var tagged := _mesh("Water")
 	root.add_child(tagged)
 	var falsey := _mesh("Meta False")
-	falsey.set_meta(DotCollisionAudit.META, false)
+	falsey.set_meta(GSCollisionAudit.META, false)
 	root.add_child(falsey)
 	var plain := _mesh("Plain")
 	root.add_child(plain)
 	# A group needs a tree; the audit asks the node, so parent the root to this scene.
 	add_child(root)
-	tagged.add_to_group(DotCollisionAudit.GROUP)
+	tagged.add_to_group(GSCollisionAudit.GROUP)
 	var found := _found(root)
 	_check(not found.has("Deco/Flag"), "metadata true opts a node out")
 	_check(not found.has("Deco/Deep/Flower"), "and its descendants")
@@ -256,8 +256,8 @@ func _test_anywhere() -> void:
 	drawn.add_child(far)
 	root.add_child(drawn)
 	root.add_child(_body("Solid"))
-	var strict := DotCollisionAudit.audit(root).value as DotCollisionAudit
-	var loose := DotCollisionAudit.audit(root, true).value as DotCollisionAudit
+	var strict := GSCollisionAudit.audit(root).value as GSCollisionAudit
+	var loose := GSCollisionAudit.audit(root, true).value as GSCollisionAudit
 	_check(strict.count() == 2, "without the option both are reported: the body is not a sibling")
 	_check(loose.paths() == PackedStringArray(["Drawn/Far"]), "with it only the mesh nowhere near a shape is")
 	_check(loose.examined == 2, "both were examined")
@@ -268,7 +268,7 @@ func _test_report() -> void:
 	_section("The report describes itself")
 	var root := Node3D.new()
 	root.add_child(_mesh("Bare"))
-	var r := DotCollisionAudit.audit(root).value as DotCollisionAudit
+	var r := GSCollisionAudit.audit(root).value as GSCollisionAudit
 	var lines := r.describe_lines()
 	_check(r.count() == 1 and r.examined == 1, "count and examined")
 	_check(lines.size() == 2 and lines[1].contains("Bare"), "describe_lines has a header and one line per finding")

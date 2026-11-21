@@ -8,8 +8,8 @@ var _passed := 0
 var _failed := 0
 var _section_count := 0
 
-var _transport: DotTransportDual = null
-var _server: DotDualPeer = null
+var _transport: GSTransportDual = null
+var _server: GSDualPeer = null
 var _ws: MultiplayerPeer = null
 var _en: MultiplayerPeer = null
 var _connected_ids: Array[int] = []
@@ -19,7 +19,7 @@ var _disconnected_ids: Array[int] = []
 ## Connects a client, has the server send it a reliable packet every 100 ms, and stops
 ## polling the client for eight seconds -- as a stalled process or a dead patch of wifi
 ## does -- then polls it for two more. Returns [dropped, why, received, sent].
-func _quiet_client(server_transport: DotTransportENet, port: int) -> Array:
+func _quiet_client(server_transport: GSTransportENet, port: int) -> Array:
 	var res := server_transport.create_server(port, "127.0.0.1")
 	if not res.ok:
 		return [true, "could not listen on %d" % port, 0, 0]
@@ -30,7 +30,7 @@ func _quiet_client(server_transport: DotTransportENet, port: int) -> Array:
 	server.peer_connected.connect(func(_id: int) -> void: joined[0] = true)
 	# A temporary transport, as most callers make one: the timeouts must still land after
 	# it is gone.
-	var client := DotTransportENet.new().create_client("127.0.0.1", port).value as ENetMultiplayerPeer
+	var client := GSTransportENet.new().create_client("127.0.0.1", port).value as ENetMultiplayerPeer
 	var deadline := Time.get_ticks_msec() + 3000
 	# Both ends: the client reports connected one step before the server has finished the
 	# handshake, and a client that stopped polling there would leave the server with no peer
@@ -111,10 +111,10 @@ func _test_tls_hello_screened() -> void:
 
 	var port := PORT + 50
 	_tls_auto_checks(port)
-	var t := DotTransportDual.new()
-	t.tls_hello_screen = DotTransportDual.TlsHelloScreen.ON
+	var t := GSTransportDual.new()
+	t.tls_hello_screen = GSTransportDual.TlsHelloScreen.ON
 	var made := t.create_server(port, "127.0.0.1")
-	var server := made.value as DotDualPeer if made.ok else null
+	var server := made.value as GSDualPeer if made.ok else null
 	_check(server != null and server.screen != null, "on: a dual server listens with its TCP port screened")
 	if server == null or server.screen == null:
 		return
@@ -139,7 +139,7 @@ func _test_tls_hello_screened() -> void:
 
 	var ids: Array[int] = []
 	server.peer_connected.connect(func(id: int) -> void: ids.append(id))
-	var ws := DotTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value as MultiplayerPeer
+	var ws := GSTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value as MultiplayerPeer
 	var deadline := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline and (ids.is_empty() or ws.get_connection_status() != MultiplayerPeer.CONNECTION_CONNECTED):
 		server.poll()
@@ -153,7 +153,7 @@ func _test_tls_hello_screened() -> void:
 	await _tls_control_checks(port)
 
 
-func _tls_relay_checks(server: DotDualPeer, ws: MultiplayerPeer, id: int) -> void:
+func _tls_relay_checks(server: GSDualPeer, ws: MultiplayerPeer, id: int) -> void:
 	var deadline := 0
 	server.set_target_peer(id)
 	server.put_packet("down".to_utf8_buffer())
@@ -209,10 +209,10 @@ func _tls_relay_checks(server: DotDualPeer, ws: MultiplayerPeer, id: int) -> voi
 
 func _tls_control_checks(port: int) -> void:
 	# The control: unscreened, the engine sits on the same hello.
-	var plain_t := DotTransportDual.new()
-	plain_t.tls_hello_screen = DotTransportDual.TlsHelloScreen.OFF
+	var plain_t := GSTransportDual.new()
+	plain_t.tls_hello_screen = GSTransportDual.TlsHelloScreen.OFF
 	var plain_made := plain_t.create_server(port + 1, "127.0.0.1")
-	var plain := plain_made.value as DotDualPeer if plain_made.ok else null
+	var plain := plain_made.value as GSDualPeer if plain_made.ok else null
 	_check(plain != null and plain.screen == null, "off: no screen")
 	if plain == null:
 		return
@@ -222,17 +222,17 @@ func _tls_control_checks(port: int) -> void:
 
 
 func _tls_auto_checks(port: int) -> void:
-	var auto_made := DotTransportDual.new().create_server(port, "127.0.0.1")
+	var auto_made := GSTransportDual.new().create_server(port, "127.0.0.1")
 	_check(
-		auto_made.ok and (auto_made.value as DotDualPeer).screen != null,
+		auto_made.ok and (auto_made.value as GSDualPeer).screen != null,
 		"auto: a loopback listener (behind a TLS terminator) is screened too, a proxied scanner reaches it"
 	)
 	if auto_made.ok:
-		(auto_made.value as DotDualPeer).close()
+		(auto_made.value as GSDualPeer).close()
 	_check(
-		DotTransportDual.is_loopback_bind("127.0.0.1") and DotTransportDual.is_loopback_bind("::1")
-			and not DotTransportDual.is_loopback_bind("") and not DotTransportDual.is_loopback_bind("*")
-			and not DotTransportDual.is_loopback_bind("0.0.0.0") and not DotTransportDual.is_loopback_bind("10.0.0.5"),
+		GSTransportDual.is_loopback_bind("127.0.0.1") and GSTransportDual.is_loopback_bind("::1")
+			and not GSTransportDual.is_loopback_bind("") and not GSTransportDual.is_loopback_bind("*")
+			and not GSTransportDual.is_loopback_bind("0.0.0.0") and not GSTransportDual.is_loopback_bind("10.0.0.5"),
 		"is_loopback_bind names loopback and nothing wider"
 	)
 
@@ -263,14 +263,14 @@ func _test_plain_http_screened() -> void:
 	var on_record := func(rec: Dictionary) -> void:
 		if str(rec.get("channel", "")) == "transport":
 			records.append(rec)
-	DotLog.signals().record.connect(on_record)
-	DotLog.set_level(DotLog.Level.DEBUG)
+	GSLog.signals().record.connect(on_record)
+	GSLog.set_level(GSLog.Level.DEBUG)
 
 	var port := PORT + 60
-	var t := DotTransportDual.new()
-	t.tls_hello_screen = DotTransportDual.TlsHelloScreen.ON
+	var t := GSTransportDual.new()
+	t.tls_hello_screen = GSTransportDual.TlsHelloScreen.ON
 	var made := t.create_server(port, "127.0.0.1")
-	var server := made.value as DotDualPeer if made.ok else null
+	var server := made.value as GSDualPeer if made.ok else null
 	_check(server != null and server.screen != null, "on: screened server listens")
 	if server == null or server.screen == null:
 		OS.remove_logger(logger)
@@ -301,7 +301,7 @@ func _test_plain_http_screened() -> void:
 
 	var ids: Array[int] = []
 	server.peer_connected.connect(func(id: int) -> void: ids.append(id))
-	var ws := DotTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value as MultiplayerPeer
+	var ws := GSTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value as MultiplayerPeer
 	var deadline := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline and ids.is_empty():
 		server.poll()
@@ -312,28 +312,28 @@ func _test_plain_http_screened() -> void:
 	_check(logger.wsl_peer.is_empty(), "on: the engine raised no wsl_peer error (%s)" % [logger.wsl_peer])
 	var debug_lines := 0
 	for rec in records:
-		if int(rec.get("level", -1)) == DotLog.Level.DEBUG and (rec.get("fields", {}) as Dictionary).has("ip"):
+		if int(rec.get("level", -1)) == GSLog.Level.DEBUG and (rec.get("fields", {}) as Dictionary).has("ip"):
 			debug_lines += 1
 	_check(debug_lines >= 4, "and each refusal left a DEBUG line with the address (%d)" % debug_lines)
 	server.close()
 
-	var off_t := DotTransportDual.new()
-	off_t.tls_hello_screen = DotTransportDual.TlsHelloScreen.OFF
+	var off_t := GSTransportDual.new()
+	off_t.tls_hello_screen = GSTransportDual.TlsHelloScreen.OFF
 	var off_made := off_t.create_server(port + 1, "127.0.0.1")
-	var off := off_made.value as DotDualPeer if off_made.ok else null
+	var off := off_made.value as GSDualPeer if off_made.ok else null
 	_check(off != null and off.screen == null, "off: no screen")
 	if off != null:
 		await _raw_request(off, port + 1, scan.to_utf8_buffer(), 1500)
 		_check(not logger.wsl_peer.is_empty(), "and unscreened the engine does raise its wsl_peer error (the bug this screens)")
 		off.close()
-	DotLog.signals().record.disconnect(on_record)
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.signals().record.disconnect(on_record)
+	GSLog.set_level(GSLog.Level.ERROR)
 	OS.remove_logger(logger)
 
 
 ## Sends [param bytes] and returns what the server wrote back before closing or
 ## [param limit_ms] passed.
-func _raw_request(server: DotDualPeer, port: int, bytes: PackedByteArray, limit_ms: int = 3000, second: PackedByteArray = PackedByteArray()) -> String:
+func _raw_request(server: GSDualPeer, port: int, bytes: PackedByteArray, limit_ms: int = 3000, second: PackedByteArray = PackedByteArray()) -> String:
 	var tcp := StreamPeerTCP.new()
 	tcp.connect_to_host("127.0.0.1", port)
 	var deadline := Time.get_ticks_msec() + 2000
@@ -369,7 +369,7 @@ func _raw_request(server: DotDualPeer, port: int, bytes: PackedByteArray, limit_
 
 ## Sends a TLS handshake record's first bytes and returns how long the server took to close
 ## the connection, or -1 when it was still open after [param limit_ms].
-func _raw_hello_closed_ms(server: DotDualPeer, port: int, limit_ms: int = 3000) -> int:
+func _raw_hello_closed_ms(server: GSDualPeer, port: int, limit_ms: int = 3000) -> int:
 	var tcp := StreamPeerTCP.new()
 	tcp.connect_to_host("127.0.0.1", port)
 	var deadline := Time.get_ticks_msec() + 2000

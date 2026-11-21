@@ -1,6 +1,6 @@
 @tool
-class_name DotTransportWebSocket
-extends DotTransport
+class_name GSTransportWebSocket
+extends GSTransport
 
 ## WebSocket transport: the only one serving browser and native clients from one listener.
 ## TCP has head-of-line blocking ENet avoids, but a browser cannot speak ENet at all.
@@ -71,16 +71,16 @@ func scheme() -> String:
 	return "wss" if use_tls else "ws"
 
 
-func _is_available() -> DotResult:
-	if not DotPlatform.has_websocket():
-		return DotResult.fail(
-			DotError.CODE_UNSUPPORTED,
+func _is_available() -> GSResult:
+	if not GSPlatform.has_websocket():
+		return GSResult.fail(
+			GSError.CODE_UNSUPPORTED,
 			"This build has no WebSocketMultiplayerPeer."
 		)
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
-func _create_server(port: int, bind_address: String) -> DotResult:
+func _create_server(port: int, bind_address: String) -> GSResult:
 	var peer := WebSocketMultiplayerPeer.new()
 	_configure(peer)
 
@@ -93,16 +93,16 @@ func _create_server(port: int, bind_address: String) -> DotResult:
 
 	var err := peer.create_server(port, bind_address, tls)
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				err, "listening on %s:%d" % [bind_address, port]
 			)
 		)
 
-	return DotResult.success(peer)
+	return GSResult.success(peer)
 
 
-func _create_client(address: String, port: int) -> DotResult:
+func _create_client(address: String, port: int) -> GSResult:
 	var url := build_url(address, port)
 
 	var peer := WebSocketMultiplayerPeer.new()
@@ -111,7 +111,7 @@ func _create_client(address: String, port: int) -> DotResult:
 	var tls := _build_client_tls()
 
 	if tls_trust_all and url.begins_with("wss"):
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"connecting with certificate verification DISABLED",
 			{"url": url}
@@ -119,11 +119,11 @@ func _create_client(address: String, port: int) -> DotResult:
 
 	var err := peer.create_client(url, tls)
 	if err != OK:
-		return DotResult.failure(
-			DotError.from_engine(err, "connecting to %s" % url)
+		return GSResult.failure(
+			GSError.from_engine(err, "connecting to %s" % url)
 		)
 
-	return DotResult.success(peer)
+	return GSResult.success(peer)
 
 
 ## Turns a user-typed address into the URL [method WebSocketMultiplayerPeer.create_client] needs.
@@ -133,7 +133,7 @@ func build_url(address: String, port: int = 0) -> String:
 	# Parsed with a sentinel of 0 so that "the address named no port" is
 	# distinguishable from "the address named the default", which is what decides
 	# whether the scheme gets to choose one below.
-	var parts := DotTransport.normalise_address(address, 0)
+	var parts := GSTransport.normalise_address(address, 0)
 
 	if str(parts["scheme"]) == "":
 		parts["scheme"] = scheme()
@@ -155,10 +155,10 @@ func build_url(address: String, port: int = 0) -> String:
 	if str(parts["path"]) == "":
 		parts["path"] = path
 
-	# [method DotWeb.is_https_page], not [method DotWeb.is_secure_context]: localhost is a secure context on plain HTTP, but mixed-content blocking exempts it too.
+	# [method GSWeb.is_https_page], not [method GSWeb.is_secure_context]: localhost is a secure context on plain HTTP, but mixed-content blocking exempts it too.
 	# Asking the wrong one upgraded every local page to wss:// against a server with no certificate.
-	if str(parts["scheme"]) == "ws" and DotWeb.is_https_page():
-		DotLog.warn(
+	if str(parts["scheme"]) == "ws" and GSWeb.is_https_page():
+		GSLog.warn(
 			CHANNEL,
 			"upgrading ws:// to wss:// — a page served over HTTPS may not open an "
 			+ "insecure socket",
@@ -166,7 +166,7 @@ func build_url(address: String, port: int = 0) -> String:
 		)
 		parts["scheme"] = "wss"
 
-	return DotTransport.format_address(parts)
+	return GSTransport.format_address(parts)
 
 
 ## The port when neither the caller nor the address named one and the scheme implies none.
@@ -183,27 +183,27 @@ func _configure(peer: WebSocketMultiplayerPeer) -> void:
 	peer.max_queued_packets = max_queued_packets
 
 
-func _build_server_tls() -> DotResult:
+func _build_server_tls() -> GSResult:
 	if tls_cert == "" or tls_key == "":
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"use_tls needs both tls_cert and tls_key.",
 			"or terminate TLS at a reverse proxy and leave use_tls off"
 		)
 
 	var cert := load(tls_cert) as X509Certificate
 	if cert == null:
-		return DotResult.fail(
-			DotError.CODE_IO, "Could not load certificate.", tls_cert
+		return GSResult.fail(
+			GSError.CODE_IO, "Could not load certificate.", tls_cert
 		)
 
 	var key := load(tls_key) as CryptoKey
 	if key == null:
-		return DotResult.fail(
-			DotError.CODE_IO, "Could not load private key.", tls_key
+		return GSResult.fail(
+			GSError.CODE_IO, "Could not load private key.", tls_key
 		)
 
-	return DotResult.success(TLSOptions.server(key, cert))
+	return GSResult.success(TLSOptions.server(key, cert))
 
 
 func _build_client_tls() -> TLSOptions:
@@ -214,7 +214,7 @@ func _build_client_tls() -> TLSOptions:
 		var ca := load(tls_ca_bundle) as X509Certificate
 		if ca != null:
 			return TLSOptions.client(ca)
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"could not load CA bundle; falling back to the system store",
 			{"path": tls_ca_bundle}

@@ -16,13 +16,13 @@ func _enter_tree() -> void:
 		icon = load(_ICON) as Texture2D
 
 	add_custom_type(
-		"DotScheduler",
+		"GSScheduler",
 		"Node",
 		load("res://addons/dot_core/core/dot_scheduler.gd"),
 		icon
 	)
 	add_custom_type(
-		"DotLogSink",
+		"GSLogSink",
 		"Node",
 		load("res://addons/dot_core/core/dot_log_sink.gd"),
 		icon
@@ -31,7 +31,7 @@ func _enter_tree() -> void:
 	# A manager is placed by the host, never autoloaded: a server's streams and a client's cosmetic
 	# ones are two managers in one process with different seeds.
 	add_custom_type(
-		"DotRandomManager",
+		"GSRandomManager",
 		"Node",
 		load("res://addons/dot_core/random/dot_random_manager.gd"),
 		icon
@@ -39,6 +39,6 @@ func _enter_tree() -> void:
 
 
 func _exit_tree() -> void:
-	remove_custom_type("DotRandomManager")
-	remove_custom_type("DotLogSink")
-	remove_custom_type("DotScheduler")
+	remove_custom_type("GSRandomManager")
+	remove_custom_type("GSLogSink")
+	remove_custom_type("GSScheduler")

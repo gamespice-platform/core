@@ -1,4 +1,4 @@
-class_name DotUdpDemux
+class_name GSUdpDemux
 extends RefCounted
 
 ## One public UDP port shared by ENet and connectionless protocols (A2S, DQP): ENet exposes no receive hook, so this owns the port.
@@ -37,18 +37,18 @@ var _dropped: int = 0
 
 ## Binds the public port. [param enet_port] is the loopback port the ENet host
 ## listens on.
-func open(port: int, bind_address: String, enet_port: int) -> DotResult:
+func open(port: int, bind_address: String, enet_port: int) -> GSResult:
 	_public = PacketPeerUDP.new()
 	var bind := bind_address if bind_address != "" else "*"
 	var err := _public.bind(port, bind)
 	if err != OK:
 		_public = null
-		return DotResult.failure(
-			DotError.from_engine(err, "binding UDP port %d" % port)
+		return GSResult.failure(
+			GSError.from_engine(err, "binding UDP port %d" % port)
 		)
 
 	_enet_port = enet_port
-	return DotResult.success(port)
+	return GSResult.success(port)
 
 
 func is_open() -> bool:
@@ -199,12 +199,12 @@ func _relay_for(ip: String, port: int, data: PackedByteArray) -> Dictionary:
 		return {}
 
 	if _relays.size() >= max_relays:
-		DotLog.warn(CHANNEL, "udp relay limit reached", {"limit": max_relays, "from": ip})
+		GSLog.warn(CHANNEL, "udp relay limit reached", {"limit": max_relays, "from": ip})
 		return {}
 
 	var socket := PacketPeerUDP.new()
 	if socket.bind(0, "127.0.0.1") != OK:
-		DotLog.warn(CHANNEL, "could not open a udp relay socket", {"from": ip})
+		GSLog.warn(CHANNEL, "could not open a udp relay socket", {"from": ip})
 		return {}
 	socket.set_dest_address("127.0.0.1", _enet_port)
 
@@ -217,7 +217,7 @@ func _relay_for(ip: String, port: int, data: PackedByteArray) -> Dictionary:
 	}
 	_relays[key] = relay
 	_by_relay_port[relay["relay_port"]] = key
-	DotLog.debug(CHANNEL, "udp relay opened", {"from": ip, "port": port})
+	GSLog.debug(CHANNEL, "udp relay opened", {"from": ip, "port": port})
 	return relay
 
 

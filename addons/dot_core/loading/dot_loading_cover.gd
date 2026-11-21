@@ -1,9 +1,9 @@
-class_name DotLoadingCover
+class_name GSLoadingCover
 extends CanvasLayer
 
-## The plain cover a [DotLoadGate] shows when nothing else does: dark full screen, status line, progress bar. Shown at full opacity, never fading in.
+## The plain cover a [GSLoadGate] shows when nothing else does: dark full screen, status line, progress bar. Shown at full opacity, never fading in.
 ## Subclass and override [method _build], or give the gate any node with show_cover/hide_cover/set_status/set_progress
-## ([member DotLoadGate.cover], [member DotLoadGate.cover_scene]). A host claiming the job means this is never built.
+## ([member GSLoadGate.cover], [member GSLoadGate.cover_scene]). A host claiming the job means this is never built.
 
 ## Above every game's own UI layers.
 const LAYER := 120

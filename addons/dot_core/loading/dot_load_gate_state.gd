@@ -1,8 +1,8 @@
 extends Node
 
-## Constants, signals, settings and state behind [DotLoadGate]; use [DotLoadGate].
+## Constants, signals, settings and state behind [GSLoadGate]; use [GSLoadGate].
 
-## The [DotRegistry] name.
+## The [GSRegistry] name.
 const SERVICE := &"dot_load_gate"
 ## Metadata the gate puts on its parent, read by [method of].
 const META := &"dot_load_gate"
@@ -69,7 +69,7 @@ signal progress_changed(fraction: float, text: String)
 ## Metres per second under which a settling body counts as at rest.
 @export var settle_rest_speed: float = 0.5
 
-## Run [DotRenderWarmup] under the gate's own cover before lifting it (no host only).
+## Run [GSRenderWarmup] under the gate's own cover before lifting it (no host only).
 @export var warm_up_on_open: bool = true
 
 ## Also warm everything under [member game_root], not only the [method warm_up] items. The level compiles as it is drawn under the cover
@@ -84,7 +84,7 @@ signal progress_changed(fraction: float, text: String)
 ## The warm-up's own cap. A headless run never draws, so this is what ends it there.
 @export var warm_timeout_sec: float = 5.0
 
-## Milliseconds a warm-up round may cost a frame; [member DotRenderWarmup.budget_msec]. One round of
+## Milliseconds a warm-up round may cost a frame; [member GSRenderWarmup.budget_msec]. One round of
 ## a game's every material was a 459 ms frame. 0 draws everything in rounds of the warm-up's batch size.
 @export var warm_budget_msec: float = 40.0
 
@@ -103,12 +103,12 @@ signal progress_changed(fraction: float, text: String)
 ## The status line when nothing held says anything.
 @export var default_text: String = "Loading"
 
-## A scene to instance as the cover instead of [DotLoadingCover]. See [method _make_cover].
+## A scene to instance as the cover instead of [GSLoadingCover]. See [method _make_cover].
 @export var cover_scene: PackedScene = null
 
 ## The cover, assignable before it is first needed. Anything with [code]show_cover()[/code],
 ## [code]hide_cover()[/code], [code]set_status(text)[/code] and
-## [code]set_progress(fraction)[/code]; [DotLoadingCover] is the stock one.
+## [code]set_progress(fraction)[/code]; [GSLoadingCover] is the stock one.
 var cover: Node = null
 
 ## The node whose subtree [member require_camera] looks in, and that [method collect_warm_items]

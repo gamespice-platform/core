@@ -1,14 +1,14 @@
-class_name DotCommandNames
+class_name GSCommandNames
 extends RefCounted
 
-## What a commands class (`DotVoteCommands`, `DotMapCommands`) is called, in one place: a `prefix`, a `names`
+## What a commands class (`GSVoteCommands`, `GSMapCommands`) is called, in one place: a `prefix`, a `names`
 ## Dictionary of role to name or list of names (first shown, rest aliases), from the `commands:` block of maps.yml / games.yml.
 ## A collision is a warning and a skip, never a steal: a name another command already has stays theirs.
 
 const CHANNEL := "core.command_names"
 
 
-## Lays a normalised `commands:` block ([param spec], from [DotRotationSpec]) over
+## Lays a normalised `commands:` block ([param spec], from [GSRotationSpec]) over
 ## [param target]'s `prefix` and `names`. The file wins over the code's defaults, because the
 ## file is the operator's.
 static func apply(target: Object, spec: Dictionary) -> void:
@@ -45,13 +45,13 @@ static func available(host: Object, full: String, taken: PackedStringArray, role
 		clash = "an existing command or cvar"
 	if clash == "":
 		return true
-	DotLog.warn(CHANNEL, "command name already in use; not registered", {
+	GSLog.warn(CHANNEL, "command name already in use; not registered", {
 		"name": full, "role": role, "used_by": clash, "owner": owner_name,
 	})
 	return false
 
 
-## A console answers `has_name`; a DotModule does not, but holds its server's console as
+## A console answers `has_name`; a GSModule does not, but holds its server's console as
 ## `console`, and registering through it is exactly what would steal the name. Asking only the
 ## host once let a module-hosted binding take the server's own `status`.
 static func _registry_has(host: Object, full: String) -> bool:

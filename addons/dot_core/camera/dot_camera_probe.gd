@@ -1,4 +1,4 @@
-class_name DotCameraProbe
+class_name GSCameraProbe
 extends RefCounted
 
 ## Keeps a camera out of geometry: a sphere swept from a pivot toward where the camera wants to be,
@@ -9,7 +9,7 @@ extends RefCounted
 var world: World3D = null
 
 ## Layers the camera stops against: the level, and usually not other characters (those
-## are faded instead; see [DotCameraFade]).
+## are faded instead; see [GSCameraFade]).
 var collision_mask: int = 1
 
 ## The camera's own size. Bigger than the near plane's half-diagonal (about 0.05 m at the

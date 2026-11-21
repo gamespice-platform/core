@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotValue], the comparisons that are total. Every check would be a runtime ERROR written the obvious way:
+## Exercises [GSValue], the comparisons that are total. Every check would be a runtime ERROR written the obvious way:
 ## `1 != "1"` is an abandoned expression and a log line in GDScript, not `true`.
 
 const SECTIONS := 4
@@ -12,7 +12,7 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -48,17 +48,17 @@ func _test_mismatched_types() -> void:
 	_section("Two different types are different, not an error")
 
 	# Every one of these, written as `a != b`, pushes "Invalid operands" and abandons the
-	# expression. DotNpcAiBlackboard.has() was exactly this and answered false for every
+	# expression. GSNpcAiBlackboard.has() was exactly this and answered false for every
 	# value that was not a StringName.
-	_check(DotValue.differs(Vector3.ZERO, &"missing"), "a Vector3 is not a StringName")
-	_check(DotValue.differs(110, [110]), "a number is not an array holding it")
-	_check(DotValue.differs({}, []), "an empty dictionary is not an empty array")
-	_check(DotValue.differs(null, 0), "null is not zero")
-	_check(DotValue.differs(null, ""), "null is not the empty string")
-	_check(DotValue.same(null, null), "and null is null")
+	_check(GSValue.differs(Vector3.ZERO, &"missing"), "a Vector3 is not a StringName")
+	_check(GSValue.differs(110, [110]), "a number is not an array holding it")
+	_check(GSValue.differs({}, []), "an empty dictionary is not an empty array")
+	_check(GSValue.differs(null, 0), "null is not zero")
+	_check(GSValue.differs(null, ""), "null is not the empty string")
+	_check(GSValue.same(null, null), "and null is null")
 
-	_check(DotValue.same(Vector3(1, 2, 3), Vector3(1, 2, 3)), "two equal vectors are equal")
-	_check(DotValue.differs(Vector3(1, 2, 3), Vector3(1, 2, 4)), "and two unequal ones are not")
+	_check(GSValue.same(Vector3(1, 2, 3), Vector3(1, 2, 3)), "two equal vectors are equal")
+	_check(GSValue.differs(Vector3(1, 2, 3), Vector3(1, 2, 4)), "and two unequal ones are not")
 
 
 func _test_number_and_text_folding() -> void:
@@ -66,32 +66,32 @@ func _test_number_and_text_folding() -> void:
 
 	# int against float is folded because GDScript compares them happily and every caller
 	# means them to be equal. A config value stored as 1 and re-read as 1.0 is one value.
-	_check(DotValue.same(1, 1.0), "an int equals the float beside it")
-	_check(DotValue.same(true, 1), "and a bool equals the number it is")
-	_check(DotValue.differs(1, 2.0), "while two different numbers still differ")
+	_check(GSValue.same(1, 1.0), "an int equals the float beside it")
+	_check(GSValue.same(true, 1), "and a bool equals the number it is")
+	_check(GSValue.differs(1, 2.0), "while two different numbers still differ")
 
 	# StringName against String is folded because a value that made a round trip through
 	# JSON comes back as one and a value read from a declaration is the other. They print
 	# identically, and calling them different reports a change on every single load.
-	_check(DotValue.same(&"high", "high"), "a StringName equals the String that prints the same")
-	_check(DotValue.differs(&"high", "low"), "and two different names still differ")
+	_check(GSValue.same(&"high", "high"), "a StringName equals the String that prints the same")
+	_check(GSValue.differs(&"high", "low"), "and two different names still differ")
 
 	# The one that is NOT folded, and the reason the schema compares printed forms where
 	# it means "did this change for a person".
-	_check(DotValue.differs(110, "110"), "a number is not the text of that number")
+	_check(GSValue.differs(110, "110"), "a number is not the text of that number")
 
 
 func _test_blank() -> void:
 	_section("Blank, which is the same trap one step along")
 
-	_check(DotValue.is_blank(null), "null is blank")
-	_check(DotValue.is_blank(""), "the empty string is blank")
-	_check(DotValue.is_blank(&""), "and so is the empty StringName")
-	_check(DotValue.is_blank([]), "an empty array is blank")
-	_check(DotValue.is_blank({}), "an empty dictionary is blank")
-	_check(not DotValue.is_blank(0), "zero is not blank, because zero is a value")
-	_check(not DotValue.is_blank(false), "and neither is false")
-	_check(not DotValue.is_blank("x"), "nor is anything with something in it")
+	_check(GSValue.is_blank(null), "null is blank")
+	_check(GSValue.is_blank(""), "the empty string is blank")
+	_check(GSValue.is_blank(&""), "and so is the empty StringName")
+	_check(GSValue.is_blank([]), "an empty array is blank")
+	_check(GSValue.is_blank({}), "an empty dictionary is blank")
+	_check(not GSValue.is_blank(0), "zero is not blank, because zero is a value")
+	_check(not GSValue.is_blank(false), "and neither is false")
+	_check(not GSValue.is_blank("x"), "nor is anything with something in it")
 
 
 func _test_dictionaries() -> void:
@@ -100,7 +100,7 @@ func _test_dictionaries() -> void:
 	var written := {"fov": 90, "quality": &"high", "volume": 1}
 	var read_back := {"fov": 90.0, "quality": "high", "volume": true}
 	_check(
-		DotValue.same_dictionary(written, read_back),
+		GSValue.same_dictionary(written, read_back),
 		"a document round-tripped through JSON compares equal to the one it was written from"
 	)
 	_check(
@@ -108,15 +108,15 @@ func _test_dictionaries() -> void:
 		"which a plain == on the two dictionaries does not say"
 	)
 	_check(
-		DotValue.differs_dictionary(written, {"fov": 91, "quality": "high", "volume": 1}),
+		GSValue.differs_dictionary(written, {"fov": 91, "quality": "high", "volume": 1}),
 		"while a document with a different value in it does differ"
 	)
 	_check(
-		DotValue.differs_dictionary(written, {"fov": 90}),
+		GSValue.differs_dictionary(written, {"fov": 90}),
 		"and so does one that is missing a key"
 	)
 	_check(
-		DotValue.differs_dictionary({"fov": 90}, written),
+		GSValue.differs_dictionary({"fov": 90}, written),
 		"in either direction"
 	)
 

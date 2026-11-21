@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotAdminIdentity]: deny by default, uid and group allowlists, guest and expiry refusals, flags and the fallback permit.
+## Exercises [GSAdminIdentity]: deny by default, uid and group allowlists, guest and expiry refusals, flags and the fallback permit.
 
 const SECTIONS := 4
 const CHECKS := 20
@@ -25,7 +25,7 @@ class FakeIdentity:
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_line("dot-core admin identity self-test")
 	_test_deny_by_default()
 	_test_admission()
@@ -49,11 +49,11 @@ func _fake(uid: String, guest := false, groups: Array = [], expires := 0) -> Fak
 	return f
 
 
-func _gate() -> DotAdminIdentity:
+func _gate() -> GSAdminIdentity:
 	var table := {"t-admin": _fake("backbone:a"), "t-user": _fake("backbone:u"), "t-guest": _fake("backbone:a", true),
 		"t-group": _fake("backbone:m", false, ["radio"]), "t-old": _fake("backbone:a", false, [], 1),
 		"t-dict": {"uid": "backbone:a"}, "t-dict-old": {"uid": "backbone:a", "expires_at": 1}, "t-nouid": _fake("")}
-	var gate := DotAdminIdentity.new()
+	var gate := GSAdminIdentity.new()
 	gate.channel = "selftest"
 	gate.flags = PackedStringArray(["radio"])
 	gate.resolver = func(t: String) -> Variant: return table.get(t)
@@ -65,7 +65,7 @@ func _test_deny_by_default() -> void:
 	var gate := _gate()
 	_check(gate.authenticate("t-admin") == null, "with no admins listed nobody is admitted")
 	_check(not gate.permit("id:backbone:a", "radio"), "an actor never admitted holds nothing")
-	var bare := DotAdminIdentity.new()
+	var bare := GSAdminIdentity.new()
 	bare.admin_uids = PackedStringArray(["backbone:a"])
 	_check(bare.authenticate("t-admin") == null, "with no resolver nobody is admitted")
 	_check(bare.flags.is_empty(), "no flags by default")

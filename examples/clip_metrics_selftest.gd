@@ -1,6 +1,6 @@
 extends Node
 
-## DotClipMetrics.pose_sample follows the leg the mesh deforms, not an IK control foot bone under the root.
+## GSClipMetrics.pose_sample follows the leg the mesh deforms, not an IK control foot bone under the root.
 ## godot --headless --path . res://examples/clip_metrics_selftest.tscn
 
 const SECTIONS := 1
@@ -38,7 +38,7 @@ func _ready() -> void:
 	for control in [true, false]:
 		var sk := _build(control)
 		add_child(sk)
-		var m := DotClipMetrics.new()
+		var m := GSClipMetrics.new()
 		var rest: Dictionary = m.pose_sample(0.0, sk, Vector3.ZERO, true)
 		sk.set_bone_pose_position(1, Vector3(0, 0.8, 0))
 		sk.set_bone_pose_position(3, sk.get_bone_pose_position(3) + Vector3(0, -0.3, 0)) if control else null
@@ -51,7 +51,7 @@ func _ready() -> void:
 	var mid := _build(false)
 	add_child(mid)
 	mid.set_bone_pose_position(1, Vector3(0, 0.8, 0))
-	var first: Dictionary = DotClipMetrics.new().pose_sample(0.0, mid, Vector3.ZERO, true)
+	var first: Dictionary = GSClipMetrics.new().pose_sample(0.0, mid, Vector3.ZERO, true)
 	_check(absf((first["feet"][0] as Vector3).y + 0.1) < 0.001, "sole comes from the rest pose, not a mid-blend first frame (foot y %.3f)" % (first["feet"][0] as Vector3).y)
 	mid.queue_free()
 	_sections += 1

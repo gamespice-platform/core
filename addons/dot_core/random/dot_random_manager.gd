@@ -1,8 +1,8 @@
-class_name DotRandomManager
+class_name GSRandomManager
 extends Node
 
 ## The one node a game holds, and the only thing that knows the session's seed (no autoload: a server and client in one process may disagree).
-## Others find it through [DotRegistry] under [constant SERVICE]. [code]rng.stream(&"loot")[/code] after [code]setup()[/code] and add_child.
+## Others find it through [GSRegistry] under [constant SERVICE]. [code]rng.stream(&"loot")[/code] after [code]setup()[/code] and add_child.
 
 ## Registry name. Anything with [code]stream(name)[/code] can stand in.
 const SERVICE := &"dot_random_source"
@@ -12,13 +12,13 @@ const CHANNEL := "random"
 ## The seed changed. Everything derived from a stream is now stale.
 signal reseeded(new_seed: int)
 
-@export var config: DotRandomConfig = null
+@export var config: GSRandomConfig = null
 
 ## Whether to publish under [constant SERVICE] on [method setup]. A second manager in the
 ## process (a client's cosmetic stream) sets this false, or the last to register wins.
 @export var register_as_service: bool = true
 
-var _root: DotRandomStream = null
+var _root: GSRandomStream = null
 var _seed: int = 0
 var _cache: Dictionary = {}
 var _draws: int = 0
@@ -26,12 +26,12 @@ var _draws: int = 0
 
 func _init() -> void:
 	if config == null:
-		config = DotRandomConfig.new()
+		config = GSRandomConfig.new()
 
 
-func setup() -> DotResult:
+func setup() -> GSResult:
 	if config == null:
-		config = DotRandomConfig.new()
+		config = GSRandomConfig.new()
 	var res := config.validate()
 	if not res.ok:
 		return res.wrap("random config")
@@ -44,13 +44,13 @@ func setup() -> DotResult:
 	_apply_seed(s)
 
 	if register_as_service:
-		DotRegistry.register(SERVICE, self)
-	return DotResult.success(null)
+		GSRegistry.register(SERVICE, self)
+	return GSResult.success(null)
 
 
 func _exit_tree() -> void:
 	if register_as_service:
-		DotRegistry.unregister_instance(SERVICE, self)
+		GSRegistry.unregister_instance(SERVICE, self)
 
 
 
@@ -70,20 +70,20 @@ func _apply_seed(s: int) -> void:
 	_cache.clear()
 	_draws = 0
 	var scope := config.scope if config != null else &""
-	_root = DotRandomStream.new(s, scope)
+	_root = GSRandomStream.new(s, scope)
 	if config != null and config.announce_seed:
-		DotLog.info(CHANNEL, "seed", {"seed": s, "scope": String(scope)})
+		GSLog.info(CHANNEL, "seed", {"seed": s, "scope": String(scope)})
 
 
 
 ## The named stream: the same name gives the same stream for the life of a seed. Cached, so
 ## two callers asking for [code]&"loot"[/code] share one counter.
-func stream(name: StringName) -> DotRandomStream:
+func stream(name: StringName) -> GSRandomStream:
 	if _root == null:
 		_apply_seed(_seed)
 	var hit: Variant = _cache.get(name)
 	if hit != null:
-		return hit as DotRandomStream
+		return hit as GSRandomStream
 	var s := _root.stream(name)
 	_cache[name] = s
 	return s
@@ -91,14 +91,14 @@ func stream(name: StringName) -> DotRandomStream:
 
 ## A fresh, uncached stream nobody else can advance, for a prediction that must not consume
 ## numbers a later replay needs.
-func private_stream(name: StringName) -> DotRandomStream:
+func private_stream(name: StringName) -> GSRandomStream:
 	if _root == null:
 		_apply_seed(_seed)
 	return _root.stream(name)
 
 
 ## A stream for one subject under one name — a chunk, a player, an entity.
-func stream_for(name: StringName, subject: int) -> DotRandomStream:
+func stream_for(name: StringName, subject: int) -> GSRandomStream:
 	if _root == null:
 		_apply_seed(_seed)
 	return _root.stream_for(name, subject)
@@ -136,6 +136,6 @@ func describe_lines() -> PackedStringArray:
 		out.append("  scope   %s" % config.scope)
 	out.append("  streams %d" % _cache.size())
 	for n in stream_names():
-		var s := _cache[StringName(n)] as DotRandomStream
+		var s := _cache[StringName(n)] as GSRandomStream
 		out.append("    %-24s @%d" % [n, s.counter()])
 	return out

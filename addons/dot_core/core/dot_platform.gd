@@ -1,9 +1,9 @@
-class_name DotPlatform
+class_name GSPlatform
 extends RefCounted
 
 ## What this build can actually do, asked once and cached.
 ## The browser lacks UDP, threads (unless the template has them), [HTTPClient] and a plain filesystem; callers ask
-## capability questions ([code]DotPlatform.has_threads()[/code]), not [code]OS.get_name() == "Web"[/code], since the mapping is not one-to-one.
+## capability questions ([code]GSPlatform.has_threads()[/code]), not [code]OS.get_name() == "Web"[/code], since the mapping is not one-to-one.
 
 enum Kind {
 	UNKNOWN,
@@ -196,7 +196,7 @@ static func has_unique_id() -> bool:
 
 
 ## The machine's own identifier, or the empty string where there is none. Never errors.
-## Callers needing a stable id generate and store one; see [code]DotClientLink._device_id[/code].
+## Callers needing a stable id generate and store one; see [code]GSClientLink._device_id[/code].
 static func unique_id() -> String:
 	return OS.get_unique_id() if has_unique_id() else ""
 

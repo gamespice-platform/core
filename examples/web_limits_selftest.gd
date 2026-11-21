@@ -7,7 +7,7 @@ extends Node
 const SECTIONS := 4
 const CHECKS := 19
 const PORT := 47393
-## GameSpice Net's DotNetPacket.MAX_FRAGMENTS and DEFAULT_MTU less its 8-byte fragment header.
+## GameSpice Net's GSNetPacket.MAX_FRAGMENTS and DEFAULT_MTU less its 8-byte fragment header.
 const SNAPSHOT_FRAGMENTS := 255
 const FRAGMENT_BYTES := 1192
 ## GameSpice Server's SCOREBOARD_MAX_BYTES.
@@ -19,16 +19,16 @@ var _sections := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	await _run()
 
 
 func _run() -> void:
 	print("dot-core web limits self-test")
-	var t := DotTransportWebSocket.new()
+	var t := GSTransportWebSocket.new()
 	await _defaults()
-	await _burst("defaults", t, DotTransportWebSocket.new(), true)
-	await _burst("a server with the dot-server buffers", _server_side(), DotTransportWebSocket.new(), true)
+	await _burst("defaults", t, GSTransportWebSocket.new(), true)
+	await _burst("a server with the dot-server buffers", _server_side(), GSTransportWebSocket.new(), true)
 	await _burst("the old 64 KiB buffers (control)", _small(), _small(), false)
 	print("%d sections, %d passed, %d failed" % [_sections, _passed, _failed])
 	var bad := _sections != SECTIONS or _passed + _failed != CHECKS or _failed > 0
@@ -37,14 +37,14 @@ func _run() -> void:
 	get_tree().quit(1 if bad else 0)
 
 
-func _server_side() -> DotTransportWebSocket:
-	var t := DotTransportWebSocket.new()
+func _server_side() -> GSTransportWebSocket:
+	var t := GSTransportWebSocket.new()
 	t.inbound_buffer_exp = 17
 	return t
 
 
-func _small() -> DotTransportWebSocket:
-	var t := DotTransportWebSocket.new()
+func _small() -> GSTransportWebSocket:
+	var t := GSTransportWebSocket.new()
 	t.inbound_buffer_exp = 16
 	t.outbound_buffer_exp = 16
 	t.max_queued_packets = 2048
@@ -63,14 +63,14 @@ func _check(ok: bool, what: String) -> void:
 func _defaults() -> void:
 	_sections += 1
 	print("-- the defaults hold the worst case")
-	var t := DotTransportWebSocket.new()
+	var t := GSTransportWebSocket.new()
 	_check(t.max_message_bytes() >= SNAPSHOT_FRAGMENTS * FRAGMENT_BYTES, "a max-fragment snapshot (%d B) fits one buffer (%d B)" % [SNAPSHOT_FRAGMENTS * FRAGMENT_BYTES, t.max_message_bytes()])
 	_check(t.max_queued_packets >= SNAPSHOT_FRAGMENTS * 8, "the packet queue holds eight worst-case snapshots")
 	_check(t.max_message_bytes() >= SCOREBOARD_BYTES * 8, "and a scoreboard many times over")
 
 
 ## [param expect_ok] false is the control: the burst is expected to lose data.
-func _burst(label: String, server_t: DotTransportWebSocket, client_t: DotTransportWebSocket, expect_ok: bool) -> void:
+func _burst(label: String, server_t: GSTransportWebSocket, client_t: GSTransportWebSocket, expect_ok: bool) -> void:
 	_sections += 1
 	print("-- ", label)
 	var s := server_t.create_server(PORT, "127.0.0.1")

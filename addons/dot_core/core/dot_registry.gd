@@ -1,20 +1,20 @@
-class_name DotRegistry
+class_name GSRegistry
 extends RefCounted
 
 ## A name-to-object registry that replaces autoloads, which cannot be instantiated twice (no server and client in one process).
-## [code]DotRegistry.register(&"dot_server", self)[/code]; [code]get_node_service(&"dot_server")[/code].
+## [code]GSRegistry.register(&"dot_server", self)[/code]; [code]get_node_service(&"dot_server")[/code].
 ## Names are namespaced by convention; use [method register_scoped] when you need two.
 
 ## Emitted through this bus so late arrivals can wait for a service instead of
 ## polling. See [method await_service].
-static var _bus: DotRegistryBus = null
+static var _bus: GSRegistryBus = null
 
 static var _services: Dictionary = {}
 
 
-static func signals() -> DotRegistryBus:
+static func signals() -> GSRegistryBus:
 	if _bus == null:
-		_bus = DotRegistryBus.new()
+		_bus = GSRegistryBus.new()
 	return _bus
 
 
@@ -23,13 +23,13 @@ static func signals() -> DotRegistryBus:
 ## Nodes unregister when they leave the tree, so callers need not pair every register.
 static func register(name: StringName, instance: Object) -> void:
 	if instance == null:
-		push_error("DotRegistry.register(%s) with a null instance." % name)
+		push_error("GSRegistry.register(%s) with a null instance." % name)
 		return
 
 	if _services.has(name):
 		var existing: Object = _services[name]
 		if is_instance_valid(existing) and existing != instance:
-			DotLog.warn(
+			GSLog.warn(
 				"registry",
 				"replacing service registration",
 				{"service": String(name), "was": existing.get_class()}
@@ -46,7 +46,7 @@ static func register(name: StringName, instance: Object) -> void:
 				_on_node_exiting.bind(name, node), CONNECT_ONE_SHOT
 			)
 
-	DotLog.debug("registry", "registered", {"service": String(name)})
+	GSLog.debug("registry", "registered", {"service": String(name)})
 	signals().service_registered.emit(name, instance)
 
 
@@ -70,7 +70,7 @@ static func unregister(name: StringName) -> void:
 	if not _services.has(name):
 		return
 	_services.erase(name)
-	DotLog.debug("registry", "unregistered", {"service": String(name)})
+	GSLog.debug("registry", "unregistered", {"service": String(name)})
 	signals().service_unregistered.emit(name)
 
 
@@ -112,13 +112,13 @@ static func has(name: StringName) -> bool:
 	return get_service(name) != null
 
 
-## The object, or a failed [DotResult] naming what was missing, so "never registered" and
+## The object, or a failed [GSResult] naming what was missing, so "never registered" and
 ## "wrong type" are different, loud boot errors.
-static func require(name: StringName, expected_class: String = "") -> DotResult:
+static func require(name: StringName, expected_class: String = "") -> GSResult:
 	var inst := get_service(name)
 	if inst == null:
-		return DotResult.fail(
-			DotError.CODE_STATE,
+		return GSResult.fail(
+			GSError.CODE_STATE,
 			"Service '%s' is not registered." % name,
 			"registered: %s" % ", ".join(names())
 		)
@@ -133,13 +133,13 @@ static func require(name: StringName, expected_class: String = "") -> DotResult:
 				break
 			script = s.get_base_script()
 		if not matched:
-			return DotResult.fail(
-				DotError.CODE_STATE,
+			return GSResult.fail(
+				GSError.CODE_STATE,
 				"Service '%s' is a %s, expected %s."
 					% [name, inst.get_class(), expected_class]
 			)
 
-	return DotResult.success(inst)
+	return GSResult.success(inst)
 
 
 ## Waits until [param name] is registered, then returns it. Times out so a typo surfaces
@@ -147,15 +147,15 @@ static func require(name: StringName, expected_class: String = "") -> DotResult:
 static func await_service(
 	name: StringName,
 	timeout_sec: float = 10.0
-) -> DotResult:
+) -> GSResult:
 	var existing := get_service(name)
 	if existing != null:
-		return DotResult.success(existing)
+		return GSResult.success(existing)
 
 	var loop := Engine.get_main_loop()
 	if not (loop is SceneTree):
-		return DotResult.fail(
-			DotError.CODE_STATE, "No SceneTree to wait on."
+		return GSResult.fail(
+			GSError.CODE_STATE, "No SceneTree to wait on."
 		)
 	var tree := loop as SceneTree
 
@@ -164,10 +164,10 @@ static func await_service(
 		await tree.process_frame
 		var found := get_service(name)
 		if found != null:
-			return DotResult.success(found)
+			return GSResult.success(found)
 
-	return DotResult.fail(
-		DotError.CODE_TIMEOUT,
+	return GSResult.fail(
+		GSError.CODE_TIMEOUT,
 		"Service '%s' did not register within %.1fs." % [name, timeout_sec]
 	)
 

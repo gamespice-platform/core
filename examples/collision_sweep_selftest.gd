@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotCollisionSweep] in a real physics space: drawn floor and walls with and without collision, the causes it names, collision nothing is drawn at, the [member DotCollisionSweep.play] filter.
+## Exercises [GSCollisionSweep] in a real physics space: drawn floor and walls with and without collision, the causes it names, collision nothing is drawn at, the [member GSCollisionSweep.play] filter.
 
 const SECTIONS := 7
 const CHECKS := 35
@@ -12,7 +12,7 @@ var _world: Node3D
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_line("dot-core collision sweep self-test")
 	_world = Node3D.new()
 	add_child(_world)
@@ -82,8 +82,8 @@ static func _wall_faces(c: Vector3, half: float, height: float) -> PackedVector3
 	return PackedVector3Array([a, b, b + t, a, b + t, a + t])
 
 
-func _sweep() -> DotCollisionSweep:
-	return DotCollisionSweep.new(_world.get_world_3d().direct_space_state, 0xFFFFFFFF)
+func _sweep() -> GSCollisionSweep:
+	return GSCollisionSweep.new(_world.get_world_3d().direct_space_state, 0xFFFFFFFF)
 
 
 func _test_floor() -> void:
@@ -200,7 +200,7 @@ func _test_report() -> void:
 	_check(lines.size() <= 2 + s.examples_per_kind, "examples are capped")
 	_check(s.count("nonexistent") == 0, "an unknown kind counts zero")
 	var cells := s.count("floor_missing")
-	_check(cells <= int(ceil(16.0 / DotCollisionSweep.CELL)) * int(ceil(16.0 / DotCollisionSweep.CELL)) + 8, "findings are cells, not triangles")
+	_check(cells <= int(ceil(16.0 / GSCollisionSweep.CELL)) * int(ceil(16.0 / GSCollisionSweep.CELL)) + 8, "findings are cells, not triangles")
 
 
 func _test_verdict() -> void:
@@ -209,14 +209,14 @@ func _test_verdict() -> void:
 	empty.sweep_drawn()
 	var r := empty.verdict()
 	_check(not r.ok, "no drawn faces fails the verdict")
-	_check(not r.ok and r.error.code == DotError.CODE_STATE, "with the state code")
+	_check(not r.ok and r.error.code == GSError.CODE_STATE, "with the state code")
 	_check(empty.verdict(false, false).ok, "asking for no samples passes")
 	var drawn := _sweep()
 	drawn.add_faces(&"world", _floor_faces(Vector3(25, 0, 0), 8.0))
 	drawn.sweep_drawn()
 	_check(drawn.verdict().ok, "a sampled floor passes, findings or not")
 	var walls := drawn.verdict(true, true)
-	_check(not walls.ok and walls.error.code == DotError.CODE_STATE, "a wall is required and none was sampled")
+	_check(not walls.ok and walls.error.code == GSError.CODE_STATE, "a wall is required and none was sampled")
 	_check(drawn.floor_samples > 0, "the floor samples were counted")
 
 

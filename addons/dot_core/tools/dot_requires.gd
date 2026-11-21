@@ -1,7 +1,7 @@
 extends SceneTree
 
-## Writes, or checks, the requirements file a pack carries (see [DotAddonApi]): no args derives from the project's files, `--out F` writes, `--check F` audits.
-## A `requires.floor.json` lowers the addons it names ([method DotAddonApi.apply_floors]); an unsound floor fails, judged against `--pin NAME=N` (repeatable, lowest wins: the level the live shell pins, from addons.lock) where given, else the linked head; a committed file is whole and unfloored.
+## Writes, or checks, the requirements file a pack carries (see [GSAddonApi]): no args derives from the project's files, `--out F` writes, `--check F` audits.
+## A `requires.floor.json` lowers the addons it names ([method GSAddonApi.apply_floors]); an unsound floor fails, judged against `--pin NAME=N` (repeatable, lowest wins: the level the live shell pins, from addons.lock) where given, else the linked head; a committed file is whole and unfloored.
 ## Exit 0 ok, 1 incomplete/overstated/unsound, 2 usage or I/O. Import first (an empty class list is refused). Document on stdout, messages on stderr.
 
 
@@ -15,32 +15,32 @@ func _init() -> void:
 		quit(2)
 		return
 
-	var derived := DotAddonApi.derive()
+	var derived := GSAddonApi.derive()
 
 	if derived.is_empty():
 		printerr("dot_requires: this project uses no addon this build has; nothing to require")
 
-	var optional := DotAddonApi.derive_optional()
+	var optional := GSAddonApi.derive_optional()
 	for addon in optional.keys():
 		printerr("dot_requires: %s is optional (reached only behind a presence check), not required" % addon)
 
-	var floor_path := "res://" + DotAddonApi.FLOOR_FILE
+	var floor_path := "res://" + GSAddonApi.FLOOR_FILE
 	var has_floors := FileAccess.file_exists(floor_path)
 
 	if check_path != "":
 		if has_floors:
-			printerr("dot_requires: %s is committed, so %s is not applied to it" % [check_path, DotAddonApi.FLOOR_FILE])
+			printerr("dot_requires: %s is committed, so %s is not applied to it" % [check_path, GSAddonApi.FLOOR_FILE])
 		var abs_check := check_path if check_path.contains("://") else "res://" + check_path
 		if not FileAccess.file_exists(abs_check):
 			printerr("dot_requires: no such file: %s" % abs_check)
 			quit(2)
 			return
-		var parsed := DotAddonApi.parse(FileAccess.get_file_as_string(abs_check))
+		var parsed := GSAddonApi.parse(FileAccess.get_file_as_string(abs_check))
 		if not parsed.ok:
 			printerr("dot_requires: %s" % str(parsed.error))
 			quit(1)
 			return
-		var problems := DotAddonApi.audit(parsed.value as Dictionary, derived)
+		var problems := GSAddonApi.audit(parsed.value as Dictionary, derived)
 		for p in problems:
 			printerr("dot_requires: %s: %s" % [check_path, p])
 		if problems.is_empty():
@@ -55,7 +55,7 @@ func _init() -> void:
 			return
 		derived = floored
 
-	var text := DotAddonApi.encode(derived)
+	var text := GSAddonApi.encode(derived)
 
 	if out_path != "":
 		var file := FileAccess.open(out_path, FileAccess.WRITE)
@@ -94,7 +94,7 @@ static func _pins(args: PackedStringArray) -> Dictionary:
 
 ## [param derived] lowered by the floor file, or the exit code when the file is unreadable (1), a `--pin` is malformed (2) or a floor is unsound (1).
 static func _floored(derived: Dictionary, floor_path: String, args: PackedStringArray) -> Variant:
-	var floors_read := DotAddonApi.parse(FileAccess.get_file_as_string(floor_path), DotAddonApi.FLOOR_FILE)
+	var floors_read := GSAddonApi.parse(FileAccess.get_file_as_string(floor_path), GSAddonApi.FLOOR_FILE)
 	if not floors_read.ok:
 		printerr("dot_requires: %s" % str(floors_read.error))
 		return 1
@@ -103,9 +103,9 @@ static func _floored(derived: Dictionary, floor_path: String, args: PackedString
 	if pins.has("error"):
 		printerr("dot_requires: %s" % pins["error"])
 		return 2
-	var unsound := DotAddonApi.floor_audit(floors, derived, DotAddonApi.guarded(), {}, pins)
+	var unsound := GSAddonApi.floor_audit(floors, derived, GSAddonApi.guarded(), {}, pins)
 	for p in unsound:
-		printerr("dot_requires: %s: %s" % [DotAddonApi.FLOOR_FILE, p])
+		printerr("dot_requires: %s: %s" % [GSAddonApi.FLOOR_FILE, p])
 	if not unsound.is_empty():
 		return 1
 	var names: Array = floors.keys()
@@ -113,5 +113,5 @@ static func _floored(derived: Dictionary, floor_path: String, args: PackedString
 	for addon in names:
 		if int(floors[addon]) < int(derived[addon]):
 			printerr("dot_requires: %s built against level %d, asks for %d (guarded, %s)"
-				% [addon, int(derived[addon]), int(floors[addon]), DotAddonApi.FLOOR_FILE])
-	return DotAddonApi.apply_floors(derived, floors)
+				% [addon, int(derived[addon]), int(floors[addon]), GSAddonApi.FLOOR_FILE])
+	return GSAddonApi.apply_floors(derived, floors)

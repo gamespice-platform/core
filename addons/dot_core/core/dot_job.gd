@@ -1,8 +1,8 @@
-class_name DotJob
+class_name GSJob
 extends RefCounted
 
 ## A unit of long-running work that can be advanced in slices.
-## Web has no threads and hashing or scanning must not freeze a frame: a [DotScheduler] drives [method step] in a budget, or a worker on desktop.
+## Web has no threads and hashing or scanning must not freeze a frame: a [GSScheduler] drives [method step] in a budget, or a worker on desktop.
 ## Subclasses override [method _step] (bounded work, true while more) and [method _progress].
 
 enum State {
@@ -13,9 +13,9 @@ enum State {
 }
 
 ## Emitted exactly once when the job reaches [constant State.DONE] or
-## [constant State.CANCELLED]. Cancellation delivers a [constant DotError.CODE_CANCELLED]
+## [constant State.CANCELLED]. Cancellation delivers a [constant GSError.CODE_CANCELLED]
 ## result rather than nothing, so [code]await job.finished[/code] always returns.
-signal finished(result: DotResult)
+signal finished(result: GSResult)
 
 ## Emitted at most once per scheduler slice, not once per [method _step] — a
 ## hashing job stepping 4000 times a frame would otherwise spend more time
@@ -23,7 +23,7 @@ signal finished(result: DotResult)
 signal progressed(fraction: float)
 
 var state: State = State.PENDING
-var result: DotResult = null
+var result: GSResult = null
 
 ## Free-form label for logs and progress UI.
 var name: String = ""
@@ -35,7 +35,7 @@ var cancel_requested: bool = false
 var _last_reported_progress: float = -1.0
 
 ## Held for the whole of a [method step] and of a settle, so no two threads are inside one job at once.
-## Without it a second thread closed a [DotHashJob]'s FileAccess under the worker and killed the server. Recursive, so a settle inside a step re-enters.
+## Without it a second thread closed a [GSHashJob]'s FileAccess under the worker and killed the server. Recursive, so a settle inside a step re-enters.
 var _lock := Mutex.new()
 
 ## How deep the holder of [member _lock] is in it. Only touched while holding it.
@@ -43,9 +43,9 @@ var _held := 0
 
 ## A settle waiting for the lock to be released before [signal finished] goes out, so
 ## no listener is ever resumed inside the lock.
-var _unsent: DotResult = null
+var _unsent: GSResult = null
 
-## Set by [method DotScheduler.submit]. A job is queued once: a second submission, to
+## Set by [method GSScheduler.submit]. A job is queued once: a second submission, to
 ## the same scheduler or another, would put two workers in it.
 var _submitted := false
 
@@ -54,8 +54,8 @@ var _submitted := false
 ## Does a bounded slice of work. Returns true if more remains.
 ## Cheap enough that one call cannot blow the frame budget: the scheduler cannot interrupt it. Hash a chunk, not a file.
 func _step() -> bool:
-	_finish(DotResult.fail(
-		DotError.CODE_INTERNAL, "DotJob._step() was not overridden."
+	_finish(GSResult.fail(
+		GSError.CODE_INTERNAL, "GSJob._step() was not overridden."
 	))
 	return false
 
@@ -85,7 +85,7 @@ func is_thread_safe() -> bool:
 
 
 ## Advances the job. Returns true while more work remains.
-## Called by [DotScheduler]; prefer [method run_to_completion] for a synchronous run.
+## Called by [GSScheduler]; prefer [method run_to_completion] for a synchronous run.
 ## Thread-safe: a second thread waits for the step to end; a job that settled meanwhile answers false.
 func step() -> bool:
 	_enter()
@@ -100,7 +100,7 @@ func step() -> bool:
 		if cancel_requested:
 			_settle(
 				State.CANCELLED,
-				DotResult.fail(DotError.CODE_CANCELLED, "Cancelled.")
+				GSResult.fail(GSError.CODE_CANCELLED, "Cancelled.")
 			)
 		else:
 			more = _step()
@@ -111,15 +111,15 @@ func step() -> bool:
 
 ## Runs the whole job on the calling thread, ignoring frame budget.
 ## For headless tools and tests; on an interactive main thread it is the freeze jobs exist to avoid.
-func run_to_completion(max_steps: int = 100_000_000) -> DotResult:
+func run_to_completion(max_steps: int = 100_000_000) -> GSResult:
 	var steps := 0
 	while step():
 		steps += 1
 		if steps >= max_steps:
 			_settle(
 				State.DONE,
-				DotResult.fail(
-					DotError.CODE_INTERNAL,
+				GSResult.fail(
+					GSError.CODE_INTERNAL,
 					"Job exceeded %d steps without finishing." % max_steps
 				)
 			)
@@ -143,7 +143,7 @@ func cancel() -> void:
 	if state == State.PENDING:
 		_settle(
 			State.CANCELLED,
-			DotResult.fail(DotError.CODE_CANCELLED, "Cancelled before start.")
+			GSResult.fail(GSError.CODE_CANCELLED, "Cancelled before start.")
 		)
 
 	_leave()
@@ -170,13 +170,13 @@ func report_progress() -> void:
 
 
 ## Called by subclasses from [method _step] to complete successfully or not.
-func _finish(res: DotResult) -> void:
+func _finish(res: GSResult) -> void:
 	_settle(State.DONE, res)
 
 
 ## Settles the job once; [method _teardown] runs under the lock, so never while another
 ## thread is inside a step.
-func _settle(new_state: State, res: DotResult) -> void:
+func _settle(new_state: State, res: GSResult) -> void:
 	_enter()
 
 	if not is_settled():
@@ -198,7 +198,7 @@ func _enter() -> void:
 func _leave() -> void:
 	_held -= 1
 
-	var send: DotResult = null
+	var send: GSResult = null
 	if _held == 0:
 		send = _unsent
 		_unsent = null
@@ -225,7 +225,7 @@ func _emit_on_main_thread(sig: Signal, arg: Variant) -> void:
 
 
 func _to_string() -> String:
-	return "DotJob(%s, %s)" % [
+	return "GSJob(%s, %s)" % [
 		name if name != "" else get_class(),
 		State.keys()[state],
 	]

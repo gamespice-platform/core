@@ -1,8 +1,8 @@
-class_name DotCameraTool
+class_name GSCameraTool
 extends SceneTree
 
 ## The base of every game's `tools/render_cameras.gd`: a game names its level, pivots and camera offsets;
-## this flies them, fails on any frame inside the level (see [method DotCameraCheck.passed]) and draws the
+## this flies them, fails on any frame inside the level (see [method GSCameraCheck.passed]) and draws the
 ## worst case before and after to `screenshots/cameras/`. Needs a renderer; `--no-render` only flies.
 
 var _out_dir := "screenshots/cameras"
@@ -124,17 +124,17 @@ func _run() -> void:
 		var worst_depth := 0.0
 
 		for pivot in pivots:
-			var got := DotCameraCheck.fly(world, DotCameraCheck.orbit_path(pivot), offset, mask)
+			var got := GSCameraCheck.fly(world, GSCameraCheck.orbit_path(pivot), offset, mask)
 			for pose in got["poses"]:
 				var depth := (pose["wanted"] as Vector3).distance_to(pose["got"] as Vector3)
 				if depth > worst_depth:
 					worst_depth = depth
 					worst = pose
-			total = DotCameraCheck.add(total, got)
+			total = GSCameraCheck.add(total, got)
 
-		var ok := DotCameraCheck.passed(total, 1)
+		var ok := GSCameraCheck.passed(total, 1)
 		_failed = _failed or not ok
-		print("%s %-13s %s  %s" % [_name, case_name, "ok  " if ok else "FAIL", DotCameraCheck.summary(total)])
+		print("%s %-13s %s  %s" % [_name, case_name, "ok  " if ok else "FAIL", GSCameraCheck.summary(total)])
 
 		if _render and not worst.is_empty():
 			await _shoot_case(String(case_name), worst)
@@ -164,7 +164,7 @@ func _shoot_case(case_name: String, pose: Dictionary) -> void:
 	root.add_child(between)
 	await _frame(Transform3D(basis, from), "%s_%s_between_before" % [_name, case_name])
 
-	var fade := DotCameraFade.new()
+	var fade := GSCameraFade.new()
 	fade.bodies_fn = func() -> Array: return [between]
 	fade.focus = me
 	fade.focus_clearance = 0.0
@@ -192,7 +192,7 @@ func _shoot_walk_in(pivot: Vector3) -> void:
 	root.add_child(bot)
 	await _frame(Transform3D(basis, pivot), "%s_walk_in_before" % _name)
 
-	var fade := DotCameraFade.new()
+	var fade := GSCameraFade.new()
 	fade.bodies_fn = func() -> Array: return [bot]
 	_camera.add_child(fade)
 	for i in 20:

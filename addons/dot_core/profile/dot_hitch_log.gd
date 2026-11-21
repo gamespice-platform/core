@@ -1,4 +1,4 @@
-class_name DotHitchLog
+class_name GSHitchLog
 extends RefCounted
 
 ## Records every frame longer than a threshold with what changed during it, so a spike can be named. Each hitch carries the frame's split
@@ -8,7 +8,7 @@ extends RefCounted
 const CHANNEL := "dot.hitch"
 
 ## Every frame's split, {t, ms, physics, script, render, wait, systems, queries, events, usec}: [code]systems[/code],
-## [code]queries[/code] and [code]events[/code] are DotFrameCost's take, take_queries and take_events (empty while off);
+## [code]queries[/code] and [code]events[/code] are GSFrameCost's take, take_queries and take_events (empty while off);
 ## [code]usec[/code] is the window's stamps [start, first physics, pre draw, post draw, end] (0 when absent).
 signal frame_measured(rec: Dictionary)
 
@@ -57,7 +57,7 @@ func start(tree: SceneTree) -> void:
 	var _d := RenderingServer.frame_post_draw.connect(_on_post_draw)
 	var _e := tree.node_added.connect(_on_added)
 	var _f := tree.node_removed.connect(_on_removed)
-	var _g := DotLog.signals().record.connect(_on_log)
+	var _g := GSLog.signals().record.connect(_on_log)
 
 
 func stop() -> void:
@@ -71,7 +71,7 @@ func stop() -> void:
 		_tree.node_removed.disconnect(_on_removed)
 	RenderingServer.frame_pre_draw.disconnect(_on_pre_draw)
 	RenderingServer.frame_post_draw.disconnect(_on_post_draw)
-	DotLog.signals().record.disconnect(_on_log)
+	GSLog.signals().record.disconnect(_on_log)
 	_tree = null
 
 
@@ -169,7 +169,7 @@ func _on_removed(_n: Node) -> void:
 func _on_log(rec: Dictionary) -> void:
 	_log_lines += 1
 	if _marks.size() < 6:
-		_marks.append("log %s: %s" % [DotLog.display_channel(str(rec.get("channel", ""))), String(rec.get("message", "")).left(48)])
+		_marks.append("log %s: %s" % [GSLog.display_channel(str(rec.get("channel", ""))), String(rec.get("message", "")).left(48)])
 
 
 func _on_physics() -> void:
@@ -206,9 +206,9 @@ func _finish(now: int) -> void:
 	frames += 1
 	_all_ms.append(wall)
 	worst_ms = maxf(worst_ms, wall)
-	var systems := DotFrameCost.take() if DotFrameCost.enabled else {}
-	var queries := DotFrameCost.take_queries() if DotFrameCost.enabled else {}
-	var events := DotFrameCost.take_events() if DotFrameCost.trace else {}
+	var systems := GSFrameCost.take() if GSFrameCost.enabled else {}
+	var queries := GSFrameCost.take_queries() if GSFrameCost.enabled else {}
+	var events := GSFrameCost.take_events() if GSFrameCost.trace else {}
 	if wall < threshold_ms and not has_connections("frame_measured"):
 		return
 	# The window runs from one process_frame to the next: the previous frame's scripts and

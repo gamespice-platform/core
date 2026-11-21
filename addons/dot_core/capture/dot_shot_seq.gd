@@ -1,4 +1,4 @@
-class_name DotShotSeq
+class_name GSShotSeq
 extends RefCounted
 ## Frame sequence after a screenshot, so a reviewer can see motion: GS_SHOT_FRAMES frames over GS_SHOT_SECS seconds into "<still>.seq/NNN.png". Off unless GS_SHOT_FRAMES is set.
 
@@ -11,8 +11,8 @@ var _next_msec := 0
 
 ## Reads the environment; true when a sequence was asked for.
 func enabled() -> bool:
-	_frames = clampi(DotConfig.gs_env("DOT_SHOT_FRAMES").to_int(), 0, 48)
-	var secs := clampf(DotConfig.gs_env("DOT_SHOT_SECS").to_float() if DotConfig.gs_env("DOT_SHOT_SECS") != "" else 2.0, 0.2, 6.0)
+	_frames = clampi(GSConfig.gs_env("DOT_SHOT_FRAMES").to_int(), 0, 48)
+	var secs := clampf(GSConfig.gs_env("DOT_SHOT_SECS").to_float() if GSConfig.gs_env("DOT_SHOT_SECS") != "" else 2.0, 0.2, 6.0)
 	_interval_msec = int(secs * 1000.0 / maxf(_frames, 1))
 	return _frames > 0
 

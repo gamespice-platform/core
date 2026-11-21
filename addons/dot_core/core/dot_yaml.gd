@@ -1,11 +1,11 @@
-class_name DotYaml
+class_name GSYaml
 extends RefCounted
 
 ## A YAML reader for configuration files, and nothing more: a deliberately small subset that refuses everything else.
 ## Supported: comments, quoted or bare scalars, ints, floats, bools, nested maps, sequences, one-line flow sequences and mappings (nested, quoted strings may hold commas).
 ## Refused with a line number: tabs, bad indent, duplicate keys, anchors, aliases, tags, block scalars.
 
-# No log channel: a parser that returns a DotResult naming the line it refused. Every
+# No log channel: a parser that returns a GSResult naming the line it refused. Every
 # caller (TmcConfig, TmcContent, install_games) wraps that with the file's path and
 # returns it, and the host says why it did not start; a line here would say it twice.
 
@@ -20,11 +20,11 @@ const MAX_DEPTH := 8
 
 ## Parses YAML text into a [Dictionary].
 ##
-## Returns a [DotResult] whose value is the top-level map, or a failure naming the line.
-static func parse(text: String, source: String = "<string>") -> DotResult:
+## Returns a [GSResult] whose value is the top-level map, or a failure naming the line.
+static func parse(text: String, source: String = "<string>") -> GSResult:
 	var lines: Variant = _prepare(text, source)
 
-	if lines is DotResult:
+	if lines is GSResult:
 		return lines
 
 	var rows: Array = lines
@@ -39,22 +39,22 @@ static func parse(text: String, source: String = "<string>") -> DotResult:
 		return _fail(source, int(row["line"]), "unexpected indentation")
 
 	var value: Variant = parsed.value
-	return DotResult.success(value if value is Dictionary else {})
+	return GSResult.success(value if value is Dictionary else {})
 
 
 ## Parses a file. A missing file is a failure, not an empty map.
 ## Collapsing the two would make a path typo look like a config that sets nothing.
-static func parse_file(path: String) -> DotResult:
+static func parse_file(path: String) -> GSResult:
 	if not FileAccess.file_exists(path):
-		return DotResult.fail(
-			DotError.CODE_IO, "No such file: %s" % path
+		return GSResult.fail(
+			GSError.CODE_IO, "No such file: %s" % path
 		)
 
 	var file := FileAccess.open(path, FileAccess.READ)
 
 	if file == null:
-		return DotResult.fail(
-			DotError.CODE_IO,
+		return GSResult.fail(
+			GSError.CODE_IO,
 			"Could not read %s." % path,
 			error_string(FileAccess.get_open_error())
 		)
@@ -66,7 +66,7 @@ static func parse_file(path: String) -> DotResult:
 
 
 ## Strips comments and blank lines, and measures each remaining line's indent.
-## Returns rows or a [DotResult] failure. A tab in the indent is refused: editors disagree on its width.
+## Returns rows or a [GSResult] failure. A tab in the indent is refused: editors disagree on its width.
 static func _prepare(text: String, source: String) -> Variant:
 	var rows: Array = []
 	var number := 0
@@ -147,12 +147,12 @@ static func _parse_block(
 	indent: int,
 	source: String,
 	depth: int
-) -> DotResult:
+) -> GSResult:
 	if depth > MAX_DEPTH:
 		return _fail(source, _line_at(rows, cursor), "nested deeper than %d" % MAX_DEPTH)
 
 	if cursor[0] >= rows.size():
-		return DotResult.success({})
+		return GSResult.success({})
 
 	var first: Dictionary = rows[cursor[0]]
 
@@ -168,7 +168,7 @@ static func _parse_map(
 	indent: int,
 	source: String,
 	depth: int
-) -> DotResult:
+) -> GSResult:
 	var out := {}
 
 	while cursor[0] < rows.size():
@@ -210,7 +210,7 @@ static func _parse_map(
 		if rest != "":
 			var scalar: Variant = _parse_scalar(rest, source, int(row["line"]))
 
-			if scalar is DotResult:
+			if scalar is GSResult:
 				return scalar
 
 			out[key] = scalar
@@ -234,7 +234,7 @@ static func _parse_map(
 		else:
 			out[key] = ""
 
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
 static func _parse_sequence(
@@ -243,7 +243,7 @@ static func _parse_sequence(
 	indent: int,
 	source: String,
 	depth: int
-) -> DotResult:
+) -> GSResult:
 	var out: Array = []
 
 	while cursor[0] < rows.size():
@@ -290,12 +290,12 @@ static func _parse_sequence(
 
 		var scalar: Variant = _parse_scalar(body, source, int(row["line"]))
 
-		if scalar is DotResult:
+		if scalar is GSResult:
 			return scalar
 
 		out.append(scalar)
 
-	return DotResult.success(out)
+	return GSResult.success(out)
 
 
 ## Splits `key: value` at the first colon outside quotes. Empty when there is none.
@@ -348,7 +348,7 @@ static func _line_at(rows: Array, cursor: Array) -> int:
 
 
 
-## Turns a scalar into a typed value, or returns a [DotResult] failure.
+## Turns a scalar into a typed value, or returns a [GSResult] failure.
 ## Inference is deliberately narrow: a quoted value is always a string (`country: "NO"`).
 static func _parse_scalar(text: String, source: String, line: int) -> Variant:
 	if text == "":
@@ -392,7 +392,7 @@ static func _parse_flow(text: String, source: String, line: int) -> Variant:
 	var pos := [0]
 	var value: Variant = _flow_value(text, pos, source, line, 0)
 
-	if value is DotResult:
+	if value is GSResult:
 		return value
 
 	if text.substr(pos[0]).strip_edges() != "":
@@ -450,7 +450,7 @@ static func _flow_collection(text: String, pos: Array, source: String, line: int
 
 		var item: Variant = _flow_value(text, pos, source, line, depth + 1, ch == "{")
 
-		if item is DotResult:
+		if item is GSResult:
 			return item
 
 		if ch == "[":
@@ -469,7 +469,7 @@ static func _flow_collection(text: String, pos: Array, source: String, line: int
 
 		var val: Variant = _flow_value(text, pos, source, line, depth + 1)
 
-		if val is DotResult:
+		if val is GSResult:
 			return val
 
 		map[String(item)] = val
@@ -524,9 +524,9 @@ static func _unquote(text: String) -> String:
 	return text
 
 
-static func _fail(source: String, line: int, why: String) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_PARSE,
+static func _fail(source: String, line: int, why: String) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_PARSE,
 		"%s:%d: %s" % [source, line, why]
 	)
 

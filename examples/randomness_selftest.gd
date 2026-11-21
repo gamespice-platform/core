@@ -14,7 +14,7 @@ var _section_count := 0
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.ERROR)
 	_run()
 
 
@@ -55,8 +55,8 @@ func _run() -> void:
 func _test_determinism() -> void:
 	_section("A seed is the whole state")
 
-	var a := DotRandomStream.new(12345, &"world")
-	var b := DotRandomStream.new(12345, &"world")
+	var a := GSRandomStream.new(12345, &"world")
+	var b := GSRandomStream.new(12345, &"world")
 	var same := true
 	for _i in range(500):
 		if a.next() != b.next():
@@ -64,40 +64,40 @@ func _test_determinism() -> void:
 			break
 	_check(same, "two streams from one seed and one name agree for 500 draws")
 
-	var c := DotRandomStream.new(12346, &"world")
-	var d := DotRandomStream.new(12345, &"other")
+	var c := GSRandomStream.new(12346, &"world")
+	var d := GSRandomStream.new(12345, &"other")
 	_check(
-		DotRandomStream.new(12345, &"world").at(0) != c.at(0),
+		GSRandomStream.new(12345, &"world").at(0) != c.at(0),
 		"a different seed is a different stream"
 	)
 	_check(
-		DotRandomStream.new(12345, &"world").at(0) != d.at(0),
+		GSRandomStream.new(12345, &"world").at(0) != d.at(0),
 		"and so is a different name on the same seed"
 	)
 
-	var s := DotRandomStream.new(99, &"resume")
+	var s := GSRandomStream.new(99, &"resume")
 	for _i in range(37):
 		s.next()
 	var mid := s.state()
 	var expected := s.next()
 
-	var t := DotRandomStream.new()
+	var t := GSRandomStream.new()
 	var res := t.adopt(mid)
 	_check(res.ok, "a state adopts")
 	_check(t.next() == expected, "and continues exactly where the original was")
 
-	var bad := DotRandomStream.new().adopt({"counter": 4})
+	var bad := GSRandomStream.new().adopt({"counter": 4})
 	_check(not bad.ok, "a state with no key is refused")
-	_check(bad.code() == DotError.CODE_INVALID, "with CODE_INVALID")
+	_check(bad.code() == GSError.CODE_INVALID, "with CODE_INVALID")
 
 	# The gaussian spare is part of the state, and leaving it out is a drift of one
 	# sample somewhere in the middle of a replay -- which is exactly the kind of bug
 	# that reports as "the replay diverges near the end".
-	var g := DotRandomStream.new(7, &"gauss")
+	var g := GSRandomStream.new(7, &"gauss")
 	g.next_gaussian()
 	var g_mid := g.state()
 	var g_expected := g.next_gaussian()
-	var g2 := DotRandomStream.new()
+	var g2 := GSRandomStream.new()
 	g2.adopt(g_mid)
 	_check(
 		is_equal_approx(g2.next_gaussian(), g_expected),
@@ -109,7 +109,7 @@ func _test_determinism() -> void:
 func _test_uniformity() -> void:
 	_section("The range is the whole range")
 
-	var s := DotRandomStream.new(4242, &"unit")
+	var s := GSRandomStream.new(4242, &"unit")
 	var buckets := PackedInt32Array()
 	buckets.resize(10)
 	var lo := INF
@@ -125,7 +125,7 @@ func _test_uniformity() -> void:
 		buckets[clampi(int(u * 10.0), 0, 9)] += 1
 
 	_check(lo >= 0.0 and hi < 1.0, "unit() stays inside [0, 1)")
-	# The half-moon check. `DotSpread.unit()` shipped with 23 bits where it wanted 24 and
+	# The half-moon check. `GSSpread.unit()` shipped with 23 bits where it wanted 24 and
 	# never returned a value above 0.5; every maximum-magnitude assertion passed.
 	_check(
 		absf(float(above_half) / float(N) - 0.5) < 0.02,
@@ -166,7 +166,7 @@ func _test_uniformity() -> void:
 func _test_independence() -> void:
 	_section("Drawing from one stream does not move another")
 
-	var root := DotRandomStream.new(777, &"root")
+	var root := GSRandomStream.new(777, &"root")
 	var loot := root.stream(&"loot")
 	var spread := root.stream(&"spread")
 
@@ -174,7 +174,7 @@ func _test_independence() -> void:
 	for _i in range(5):
 		expected.append(spread.next_unit())
 
-	var root2 := DotRandomStream.new(777, &"root")
+	var root2 := GSRandomStream.new(777, &"root")
 	var spread2 := root2.stream(&"spread")
 	var loot2 := root2.stream(&"loot")
 	# The whole point: a thousand loot draws in between, in a different order of
@@ -201,7 +201,7 @@ func _test_independence() -> void:
 func _test_indexed_purity() -> void:
 	_section("An indexed draw advances nothing")
 
-	var s := DotRandomStream.new(31337, &"pure")
+	var s := GSRandomStream.new(31337, &"pure")
 	var before := s.counter()
 	var a := s.unit_at(900)
 	var b := s.unit_at(900)
@@ -214,7 +214,7 @@ func _test_indexed_purity() -> void:
 	_check(s.counter() == 6, "and then moves it")
 
 	# The GameSpice 2D lesson: a receiving peer adopts an index rather than allocating one.
-	var mirror := DotRandomStream.new()
+	var mirror := GSRandomStream.new()
 	mirror.adopt(s.state())
 	_check(
 		is_equal_approx(mirror.unit_at(12345), s.unit_at(12345)),
@@ -226,7 +226,7 @@ func _test_indexed_purity() -> void:
 func _test_collections() -> void:
 	_section("Shuffles, samples and weights")
 
-	var s := DotRandomStream.new(5150, &"coll")
+	var s := GSRandomStream.new(5150, &"coll")
 	var source := [1, 2, 3, 4, 5, 6, 7, 8]
 	var shuffled := s.next_shuffled(source)
 	_check(source == [1, 2, 3, 4, 5, 6, 7, 8], "a shuffle does not touch the original")
@@ -273,7 +273,7 @@ func _test_collections() -> void:
 	# `next_pick` and `next_sign` were public and called by nothing. Both are asserted on
 	# their DISTRIBUTION rather than on one draw: a picker that always returns the first
 	# element and a sign that is always 1 both pass any single-call check.
-	var pick_stream := DotRandomStream.new(99)
+	var pick_stream := GSRandomStream.new(99)
 	var seen := {}
 	for _i in range(300):
 		seen[pick_stream.next_pick([&"a", &"b", &"c"])] = true
@@ -292,7 +292,7 @@ func _test_collections() -> void:
 func _test_geometry() -> void:
 	_section("Points and directions are uniform by area")
 
-	var s := DotRandomStream.new(2718, &"geom")
+	var s := GSRandomStream.new(2718, &"geom")
 
 	# The quadrant check, which is the one that catches a half-range hash. A
 	# maximum-magnitude check passes for a half-moon; this does not.
@@ -347,16 +347,16 @@ func _test_geometry() -> void:
 func _test_tables() -> void:
 	_section("Tables: replacement, decks and pity")
 
-	var s := DotRandomStream.new(808, &"table")
+	var s := GSRandomStream.new(808, &"table")
 
-	var flat := DotRandomTable.new()
+	var flat := GSRandomTable.new()
 	flat.add(&"common", 90.0).add(&"rare", 10.0)
 	_check(flat.validate().ok, "a well-formed table validates")
 
-	var dupe := DotRandomTable.new()
+	var dupe := GSRandomTable.new()
 	dupe.add(&"x", 1.0).add(&"x", 1.0)
 	_check(not dupe.validate().ok, "a duplicate id is refused, because pity cannot tell them apart")
-	var empty := DotRandomTable.new()
+	var empty := GSRandomTable.new()
 	_check(not empty.validate().ok, "and so is a table with nothing in it")
 
 	var hits := 0
@@ -365,8 +365,8 @@ func _test_tables() -> void:
 			hits += 1
 	_check(absf(float(hits) / 4000.0 - 0.1) < 0.02, "flat weights come out flat")
 
-	var deck := DotRandomTable.new()
-	deck.policy = DotRandomTable.Policy.WITHOUT_REPLACEMENT
+	var deck := GSRandomTable.new()
+	deck.policy = GSRandomTable.Policy.WITHOUT_REPLACEMENT
 	deck.add(&"a", 1.0).add(&"b", 1.0).add(&"c", 1.0)
 	var dealt := deck.draw_many(s, 3)
 	_check(
@@ -394,7 +394,7 @@ func _test_tables() -> void:
 
 	_tables_tagged(s)
 
-	var round_trip := DotRandomTable.from_dictionary(pity.to_dictionary())
+	var round_trip := GSRandomTable.from_dictionary(pity.to_dictionary())
 	_check(round_trip.size() == pity.size(), "a table round-trips through a dictionary")
 	_check(round_trip.policy == pity.policy, "with its policy")
 	_check(
@@ -412,11 +412,11 @@ func _test_tables() -> void:
 	)
 
 
-func _tables_pity(s: DotRandomStream) -> DotRandomTable:
+func _tables_pity(s: GSRandomStream) -> GSRandomTable:
 	# Pity is measured in two dimensions: a drought-only check passes a table at seven times its
 	# rate, a rate-only check one that still makes a player in fifty wait for ever.
-	var eager := DotRandomTable.new()
-	eager.policy = DotRandomTable.Policy.PITY
+	var eager := GSRandomTable.new()
+	eager.policy = GSRandomTable.Policy.PITY
 	eager.add(&"common", 98.0).add(&"rare", 2.0, 4.0)
 	var eager_m := eager.measure_rate(s, &"rare", 20000)
 	_check(
@@ -425,8 +425,8 @@ func _tables_pity(s: DotRandomStream) -> DotRandomTable:
 		% (float(eager_m["rate"]) * 100.0)
 	)
 
-	var pity := DotRandomTable.new()
-	pity.policy = DotRandomTable.Policy.PITY
+	var pity := GSRandomTable.new()
+	pity.policy = GSRandomTable.Policy.PITY
 	pity.pity_after = 60
 	pity.add(&"common", 98.0).add(&"rare", 2.0, 4.0)
 	var m := pity.measure_rate(s, &"rare", 40000)
@@ -449,10 +449,10 @@ func _tables_pity(s: DotRandomStream) -> DotRandomTable:
 	return pity
 
 
-func _tables_tagged(s: DotRandomStream) -> void:
+func _tables_tagged(s: GSRandomStream) -> void:
 	# Filtering happens inside the table: two tables over the same entries have two pity
 	# counters, and drawing from both shows the rare entry at twice the stated rate.
-	var tagged := DotRandomTable.new()
+	var tagged := GSRandomTable.new()
 	tagged.add(&"sword", 1.0, 0.0, &"weapon")
 	tagged.add(&"shield", 1.0, 0.0, &"armour")
 	tagged.add(&"axe", 1.0, 0.0, &"weapon")
@@ -473,14 +473,14 @@ func _tables_tagged(s: DotRandomStream) -> void:
 func _test_schedules() -> void:
 	_section("Events in ticks, decided without simulating")
 
-	var s := DotRandomStream.new(64000, &"sched")
+	var s := GSRandomStream.new(64000, &"sched")
 
-	var sched := DotRandomSchedule.new()
+	var sched := GSRandomSchedule.new()
 	sched.mean_interval_ticks = 640
 	sched.min_gap_ticks = 128
 	_check(sched.validate().ok, "a sane schedule validates")
 
-	var never := DotRandomSchedule.new()
+	var never := GSRandomSchedule.new()
 	never.mean_interval_ticks = 100
 	never.min_gap_ticks = 100
 	_check(not never.validate().ok, "a floor at the mean is a metronome and is refused")
@@ -508,14 +508,14 @@ func _test_schedules() -> void:
 			backward = false
 	_check(backward, "and a tick answers the same asked backwards")
 
-	var ceiling := DotRandomSchedule.new()
+	var ceiling := GSRandomSchedule.new()
 	ceiling.mean_interval_ticks = 100000
 	ceiling.min_gap_ticks = 10
 	ceiling.max_gap_ticks = 200
 	_check(ceiling.fires_at(s, 200, 0), "a ceiling fires however improbable the roll")
 	_check(not ceiling.fires_at(s, 5, 0), "and the floor still wins under it")
 
-	var off := DotRandomSchedule.new()
+	var off := GSRandomSchedule.new()
 	off.mean_interval_ticks = 0
 	_check(not off.fires_at(s, 999999, 0), "a mean of zero never fires")
 	# Zero means "never" here and "every tick" in some of this family's other settings.
@@ -528,15 +528,15 @@ func _test_schedules() -> void:
 func _test_manager() -> void:
 	_section("The manager a game holds")
 
-	var m := DotRandomManager.new()
-	m.config = DotRandomConfig.new()
+	var m := GSRandomManager.new()
+	m.config = GSRandomConfig.new()
 	m.config.master_seed = 4096
 	m.config.announce_seed = false
 	add_child(m)
 	var res := m.setup()
 	_check(res.ok, "the manager sets up")
 	_check(m.current_seed() == 4096, "and keeps the configured seed")
-	_check(DotRegistry.has(DotRandomManager.SERVICE), "and publishes itself in the registry")
+	_check(GSRegistry.has(GSRandomManager.SERVICE), "and publishes itself in the registry")
 
 	var a := m.stream(&"loot")
 	var b := m.stream(&"loot")
@@ -554,8 +554,8 @@ func _test_manager() -> void:
 		"while a stream handed out earlier keeps the old one, which is why the signal exists"
 	)
 
-	var unseeded := DotRandomManager.new()
-	unseeded.config = DotRandomConfig.new()
+	var unseeded := GSRandomManager.new()
+	unseeded.config = GSRandomConfig.new()
 	unseeded.config.master_seed = 0
 	unseeded.config.random_when_unseeded = false
 	unseeded.config.announce_seed = false

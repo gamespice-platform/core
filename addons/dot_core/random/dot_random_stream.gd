@@ -1,4 +1,4 @@
-class_name DotRandomStream
+class_name GSRandomStream
 extends RefCounted
 
 ## A named, counter-based, splittable random stream: a draw is a pure function of (key, index), so peers drawing in a different order never diverge.
@@ -31,8 +31,8 @@ func _init(p_seed: int = 0, p_name: StringName = &"") -> void:
 
 ## A child stream independent of this one's.
 ## Derived by name, not index, so the stream is the same whatever order subsystems were created in.
-func stream(name: StringName) -> DotRandomStream:
-	var child := DotRandomStream.new(0, &"")
+func stream(name: StringName) -> GSRandomStream:
+	var child := GSRandomStream.new(0, &"")
 	child._key = _mix(_key ^ _hash_name(name) ^ _GAMMA)
 	child._name = StringName("%s/%s" % [_name, name]) if _name != &"" else name
 	return child
@@ -40,7 +40,7 @@ func stream(name: StringName) -> DotRandomStream:
 
 ## A child for one subject (a player, an entity, a chunk).
 ## Not [code]stream(str(id))[/code]: it must not allocate a string per chunk.
-func stream_for(name: StringName, subject: int) -> DotRandomStream:
+func stream_for(name: StringName, subject: int) -> GSRandomStream:
 	var child := stream(name)
 	child._key = _mix(child._key ^ _mix(subject))
 	return child
@@ -267,20 +267,20 @@ func state() -> Dictionary:
 
 ## Adopts a state produced by [method state].
 ## Named [code]adopt[/code], not [code]set_state[/code]: a receiver must take the index it is given, not allocate one.
-func adopt(s: Dictionary) -> DotResult:
+func adopt(s: Dictionary) -> GSResult:
 	if not s.has("key"):
-		return DotResult.fail(DotError.CODE_INVALID, "a stream state needs a key")
+		return GSResult.fail(GSError.CODE_INVALID, "a stream state needs a key")
 	_key = int(s.get("key", 0))
 	_name = StringName(str(s.get("name", "")))
 	_counter = maxi(0, int(s.get("counter", 0)))
 	_gauss_spare = float(s.get("spare", 0.0))
 	_gauss_has_spare = bool(s.get("has_spare", false))
-	return DotResult.success(self)
+	return GSResult.success(self)
 
 
 ## An independent copy, at the same position.
-func duplicate_stream() -> DotRandomStream:
-	var c := DotRandomStream.new()
+func duplicate_stream() -> GSRandomStream:
+	var c := GSRandomStream.new()
 	c.adopt(state())
 	return c
 
@@ -295,7 +295,7 @@ func describe_lines() -> PackedStringArray:
 
 
 func _to_string() -> String:
-	return "DotRandomStream(%s @%d)" % [String(_name), _counter]
+	return "GSRandomStream(%s @%d)" % [String(_name), _counter]
 
 
 # Public so a subsystem whose draw is a pure function of several integers (shot scatter) needn't

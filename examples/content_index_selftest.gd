@@ -1,6 +1,6 @@
 extends Node
 
-## Exercises [DotContentIndex]: two packs, two sessions, tag reuse, the session signal, and a kind this build does not know.
+## Exercises [GSContentIndex]: two packs, two sessions, tag reuse, the session signal, and a kind this build does not know.
 
 const SECTIONS := 5
 const CHECKS := 32
@@ -8,12 +8,12 @@ const CHECKS := 32
 var _passed := 0
 var _failed := 0
 var _section_count := 0
-var _idx: DotContentIndex
+var _idx: GSContentIndex
 
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.ERROR)
-	_idx = DotContentIndex.new()
+	GSLog.set_level(GSLog.Level.ERROR)
+	_idx = GSContentIndex.new()
 	_run()
 
 
@@ -46,15 +46,15 @@ func _run() -> void:
 
 func _test_shared() -> void:
 	_section("shared() creates once and registers")
-	DotRegistry.unregister(DotContentIndex.SERVICE)
-	var a := DotContentIndex.shared()
+	GSRegistry.unregister(GSContentIndex.SERVICE)
+	var a := GSContentIndex.shared()
 	_check(a != null, "shared() creates an index")
-	_check(DotContentIndex.shared() == a, "and returns the same one afterwards")
-	_check(DotRegistry.get_service(DotContentIndex.SERVICE) == a, "registered as dot_content_index")
-	var own := DotContentIndex.new()
-	DotRegistry.register(DotContentIndex.SERVICE, own)
-	_check(DotContentIndex.shared() == own, "a test can replace it")
-	DotRegistry.unregister(DotContentIndex.SERVICE)
+	_check(GSContentIndex.shared() == a, "and returns the same one afterwards")
+	_check(GSRegistry.get_service(GSContentIndex.SERVICE) == a, "registered as dot_content_index")
+	var own := GSContentIndex.new()
+	GSRegistry.register(GSContentIndex.SERVICE, own)
+	_check(GSContentIndex.shared() == own, "a test can replace it")
+	GSRegistry.unregister(GSContentIndex.SERVICE)
 
 
 func _test_add_and_read() -> void:
@@ -130,7 +130,7 @@ func _test_unknown_and_invalid() -> void:
 	_check(_idx.entry("c/new@1:hologram/h").raw.get("future_field") == 1, "unknown fields survive in raw")
 	_check(not _idx.add_pack({"content_id": "", "version": "1", "session": &"solo", "provides": {}}).ok, "empty id refused")
 	var bad := _idx.add_pack({"content_id": "d", "version": "1", "session": &"lan", "provides": {}})
-	_check(not bad.ok and bad.error.code == DotError.CODE_INVALID, "unknown session refused as invalid")
+	_check(not bad.ok and bad.error.code == GSError.CODE_INVALID, "unknown session refused as invalid")
 
 
 func _section(title: String) -> void:

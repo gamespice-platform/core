@@ -1,11 +1,11 @@
-class_name DotWeb
+class_name GSWeb
 extends RefCounted
 
 ## Access to the browser from GDScript, safely callable on every platform.
 ## Everything goes through [method Engine.get_singleton]: naming JavaScriptBridge fails to parse on desktop builds.
-## Off-web each call is a no-op or a failed [DotResult], so callers can use it unguarded.
+## Off-web each call is a no-op or a failed [GSResult], so callers can use it unguarded.
 
-# Most of this class has no log channel: each call is a no-op or a failed DotResult off the web, and whether
+# Most of this class has no log channel: each call is a no-op or a failed GSResult off the web, and whether
 # "not in a browser" matters is the caller's decision. Only the filesystem sync reports, on its own channel.
 const SYNC_CHANNEL := "web.sync"
 
@@ -50,35 +50,35 @@ static func page() -> Variant:
 	return get_global("dotWeb")
 
 
-static func _page_or_fail() -> DotResult:
+static func _page_or_fail() -> GSResult:
 	if not available():
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "Not running in a browser.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "Not running in a browser.")
 	var p: Variant = page()
 	if p == null:
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "The page does not load dot_web.js.")
-	return DotResult.success(p)
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "The page does not load dot_web.js.")
+	return GSResult.success(p)
 
 
 ## Posts a JSON-encoded [param payload] to the embedding page (window.parent).
-static func post_to_parent(payload: Variant) -> DotResult:
+static func post_to_parent(payload: Variant) -> GSResult:
 	var r := _page_or_fail()
 	if not r.ok:
 		return r
 	var sent: Variant = r.value.postToParent(JSON.stringify(payload))
 	if sent == true:
-		return DotResult.success(true)
-	return DotResult.fail(DotError.CODE_UNSUPPORTED, "No embedding page took the message.")
+		return GSResult.success(true)
+	return GSResult.fail(GSError.CODE_UNSUPPORTED, "No embedding page took the message.")
 
 
 ## Locks Escape and other browser keys while fullscreen. The page does it by itself on fullscreenchange; this is for a caller that knows better.
-static func lock_keyboard() -> DotResult:
+static func lock_keyboard() -> GSResult:
 	var r := _page_or_fail()
 	if not r.ok:
 		return r
 	var locked: Variant = r.value.lockKeyboard()
 	if locked == true:
-		return DotResult.success(true)
-	return DotResult.fail(DotError.CODE_UNSUPPORTED, "navigator.keyboard.lock is unavailable.")
+		return GSResult.success(true)
+	return GSResult.fail(GSError.CODE_UNSUPPORTED, "navigator.keyboard.lock is unavailable.")
 
 
 ## Installs nothing (the page script did); reports whether the leave-site guard exists to arm.
@@ -87,21 +87,21 @@ static func has_tab_guard() -> bool:
 
 
 ## Arms or disarms the browser's leave-site prompt.
-static func set_tab_guard_armed(armed: bool) -> DotResult:
+static func set_tab_guard_armed(armed: bool) -> GSResult:
 	var g: Variant = get_global("__dotTabGuard")
 	if g == null:
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "The page has no leave-site guard.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "The page has no leave-site guard.")
 	g.armed = armed
-	return DotResult.success(armed)
+	return GSResult.success(armed)
 
 
 ## Hands [param text] to the browser as a download named [param filename].
-static func download_text(text: String, filename: String) -> DotResult:
+static func download_text(text: String, filename: String) -> GSResult:
 	var r := _page_or_fail()
 	if not r.ok:
 		return r
 	r.value.downloadText(text, filename)
-	return DotResult.success(true)
+	return GSResult.success(true)
 
 
 ## True when the browser reports Save-Data or a cellular connection; false when it cannot say.
@@ -119,7 +119,7 @@ static func publish(key: String, text: String) -> void:
 		p.publish(key, text)
 
 
-## Reloads the page; no-op off-web. Not named reload: DotWeb.reload() would call Script.reload() instead.
+## Reloads the page; no-op off-web. Not named reload: GSWeb.reload() would call Script.reload() instead.
 static func reload_page() -> void:
 	var loc: Variant = get_global("location")
 	if loc != null:
@@ -166,17 +166,17 @@ static func sync_failures() -> int:
 
 ## Syncs, waits, and syncs again while the engine reports a failed save, up to [param attempts] times.
 ## The engine's callback is not visible, so the wait is a fixed [param settle_s] per attempt. Fails with [code]CODE_IO[/code] if the last attempt still reported a failure, and succeeds off-web.
-static func flush_filesystem(tree: SceneTree, attempts: int = 3, settle_s: float = 1.0) -> DotResult:
+static func flush_filesystem(tree: SceneTree, attempts: int = 3, settle_s: float = 1.0) -> GSResult:
 	if not available() or tree == null:
-		return DotResult.success(true)
+		return GSResult.success(true)
 	for attempt in maxi(attempts, 1):
 		var before := sync_failures()
 		sync_filesystem()
 		await tree.create_timer(settle_s).timeout
 		if sync_failures() == before:
-			return DotResult.success(true)
-		DotLog.warn(SYNC_CHANNEL, "browser storage save failed; trying again", {"attempt": attempt + 1, "of": attempts})
-	return DotResult.fail(DotError.CODE_IO, "The browser would not save user:// to IndexedDB.")
+			return GSResult.success(true)
+		GSLog.warn(SYNC_CHANNEL, "browser storage save failed; trying again", {"attempt": attempt + 1, "of": attempts})
+	return GSResult.fail(GSError.CODE_IO, "The browser would not save user:// to IndexedDB.")
 
 
 ## True when [param current] failures is more than the [param seen] count: the one comparison [method _report_sync_failures] makes.
@@ -212,19 +212,19 @@ static func _install_unload_flush() -> void:
 static func _report_sync_failures() -> void:
 	var now := sync_failures()
 	if has_new_sync_failures(now, _sync_failures_seen):
-		DotLog.warn(SYNC_CHANNEL, "browser storage save failed; a later sync rewrites what it missed", {"new": now - _sync_failures_seen, "total": now})
+		GSLog.warn(SYNC_CHANNEL, "browser storage save failed; a later sync rewrites what it missed", {"new": now - _sync_failures_seen, "total": now})
 	_sync_failures_seen = now
 
 
 ## Best-effort storage quota, as [code]{"usage": bytes, "quota": bytes}[/code].
 ## Fails when the API is missing (older Safari); treat an unknown quota as normal and fall back to a configured ceiling.
-static func estimate_storage() -> DotResult:
+static func estimate_storage() -> GSResult:
 	var r := _page_or_fail()
 	if not r.ok:
 		return r
 	var p: Variant = r.value
 	if p.startStorageEstimate() != true:
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "navigator.storage.estimate is unavailable.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "navigator.storage.estimate is unavailable.")
 
 	# A JS Promise cannot be awaited from GDScript: the page parks the result on a property and it resolves in microseconds.
 	var loop := Engine.get_main_loop()
@@ -233,14 +233,14 @@ static func estimate_storage() -> DotResult:
 		if raw != null and str(raw) != "":
 			var parsed: Variant = JSON.parse_string(str(raw))
 			if parsed is Dictionary:
-				return DotResult.success(parsed)
+				return GSResult.success(parsed)
 			break
 		if loop is SceneTree:
 			await (loop as SceneTree).process_frame
 		else:
 			break
 
-	return DotResult.fail(DotError.CODE_TIMEOUT, "Storage estimate did not resolve.")
+	return GSResult.fail(GSError.CODE_TIMEOUT, "Storage estimate did not resolve.")
 
 
 ## Whether [method fetch_bytes] can run: a browser whose page loads a dot_web.js with fetchStart.
@@ -255,9 +255,9 @@ static func can_fetch_bytes() -> bool:
 ## A GET read whole by the browser, as [code]{status, headers (PackedStringArray "k: v"), body}[/code].
 ## [HTTPRequest] on web reads one stream chunk per frame, so a large body arrives at chunk x fps; this does not.
 ## Fails CODE_UNSUPPORTED when [method can_fetch_bytes] is false, CODE_INVALID over [param max_bytes] (0 = none).
-static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: float, max_bytes: int = 0) -> DotResult:
+static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: float, max_bytes: int = 0) -> GSResult:
 	if not can_fetch_bytes():
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "The page cannot fetch a whole body.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "The page cannot fetch a whole body.")
 	var p: Variant = page()
 	var headers := {}
 	for line in header_list:
@@ -267,7 +267,7 @@ static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: 
 	var timeout_ms := int(maxf(timeout_s, 0.0) * 1000.0)
 	var id: Variant = p.fetchStart(url, JSON.stringify(headers), timeout_ms, max_bytes)
 	if id == null or int(id) <= 0:
-		return DotResult.fail(DotError.CODE_UNSUPPORTED, "fetch is unavailable.")
+		return GSResult.fail(GSError.CODE_UNSUPPORTED, "fetch is unavailable.")
 
 	# The page parks the outcome and GDScript polls once a frame, as in estimate_storage.
 	var loop := Engine.get_main_loop()
@@ -281,7 +281,7 @@ static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: 
 		var stuck := timeout_ms > 0 and Time.get_ticks_msec() - started > timeout_ms + 5000
 		if stuck or not (loop is SceneTree):
 			p.fetchDrop(id)
-			return DotResult.fail(DotError.CODE_TIMEOUT, "The browser fetch did not finish.", url)
+			return GSResult.fail(GSError.CODE_TIMEOUT, "The browser fetch did not finish.", url)
 		await (loop as SceneTree).process_frame
 
 	var buf: Variant = p.fetchTake(id)
@@ -289,12 +289,12 @@ static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: 
 	var info: Dictionary = parsed if parsed is Dictionary else {"error": "unknown"}
 	var error := str(info.get("error", ""))
 	if error == "timeout":
-		return DotResult.fail(DotError.CODE_TIMEOUT, "The browser fetch timed out.", url)
+		return GSResult.fail(GSError.CODE_TIMEOUT, "The browser fetch timed out.", url)
 	if error == "too_large":
-		return DotResult.fail(DotError.CODE_INVALID, "Response is larger than the caller allows.",
+		return GSResult.fail(GSError.CODE_INVALID, "Response is larger than the caller allows.",
 			"%d > %d bytes" % [int(info.get("size", 0)), max_bytes])
 	if error != "" or buf == null:
-		return DotResult.fail(DotError.CODE_NETWORK, "The browser fetch failed.", str(info.get("detail", error)))
+		return GSResult.fail(GSError.CODE_NETWORK, "The browser fetch failed.", str(info.get("detail", error)))
 
 	var body: PackedByteArray = bridge().call("js_buffer_to_packed_byte_array", buf)
 	var lines := PackedStringArray()
@@ -302,7 +302,7 @@ static func fetch_bytes(url: String, header_list: PackedStringArray, timeout_s: 
 	if listed is Array:
 		for h in listed:
 			lines.append(str(h))
-	return DotResult.success({"status": int(info.get("status", 0)), "headers": lines, "body": body})
+	return GSResult.success({"status": int(info.get("status", 0)), "headers": lines, "body": body})
 
 
 ## Asks the browser to make storage persistent so it is not evicted under pressure.

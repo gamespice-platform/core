@@ -1,8 +1,8 @@
-class_name DotMeteredPeer
+class_name GSMeteredPeer
 extends MultiplayerPeerExtension
 
 ## Any [MultiplayerPeer], counted: payload bytes and packets each way per channel, plus [method transport_stats]. A wrapper because ENet keeps
-## totals and WebSocket none; totals, never rates. Packets are queued on [method _poll] like [DotDualPeer]; no ENet identifier is named.
+## totals and WebSocket none; totals, never rates. Packets are queued on [method _poll] like [GSDualPeer]; no ENet identifier is named.
 
 ## The peer underneath. Everything is forwarded to it.
 var inner: MultiplayerPeer = null
@@ -13,7 +13,7 @@ var packets_in: int = 0
 var packets_out: int = 0
 
 ## Indexed by channel number. Grown on demand, so a game that sends on channel 6 is counted
-## rather than dropped; see [constant DotTransport.CHANNEL_COUNT] for the family's four.
+## rather than dropped; see [constant GSTransport.CHANNEL_COUNT] for the family's four.
 var bytes_in_by_channel: PackedInt64Array = PackedInt64Array([0, 0, 0, 0])
 var bytes_out_by_channel: PackedInt64Array = PackedInt64Array([0, 0, 0, 0])
 
@@ -51,9 +51,9 @@ var _closed := false
 ## [param peer] behind a meter. A peer that is already one is returned as it is, so a
 ## caller that wraps twice counts once.
 static func wrap(peer: MultiplayerPeer) -> MultiplayerPeer:
-	if peer == null or peer is DotMeteredPeer:
+	if peer == null or peer is GSMeteredPeer:
 		return peer
-	var m := DotMeteredPeer.new()
+	var m := GSMeteredPeer.new()
 	m.inner = peer
 		# Methods, not lambdas: a lambda capturing m is held by the inner peer's signal and holds
 		# m, which holds the inner peer, a RefCounted cycle that would never free the socket.
@@ -72,8 +72,8 @@ func _on_inner_disconnected(id: int) -> void:
 
 ## The meter behind [param peer], or null when it is not one. For a reader that holds a
 ## [MultiplayerAPI] and must not assume.
-static func of(peer: Object) -> DotMeteredPeer:
-	return peer as DotMeteredPeer if peer is DotMeteredPeer else null
+static func of(peer: Object) -> GSMeteredPeer:
+	return peer as GSMeteredPeer if peer is GSMeteredPeer else null
 
 
 
@@ -189,11 +189,11 @@ func describe() -> Dictionary:
 func describe_lines() -> PackedStringArray:
 	var lines := PackedStringArray()
 	lines.append("transport %s" % transport_name())
-	lines.append("in  %s in %d packets" % [DotPaths.format_bytes(bytes_in), packets_in])
-	lines.append("out %s in %d packets" % [DotPaths.format_bytes(bytes_out), packets_out])
+	lines.append("in  %s in %d packets" % [GSPaths.format_bytes(bytes_in), packets_in])
+	lines.append("out %s in %d packets" % [GSPaths.format_bytes(bytes_out), packets_out])
 	for ch in maxi(bytes_in_by_channel.size(), bytes_out_by_channel.size()):
 		lines.append("  channel %d: %s in, %s out" % [
-			ch, DotPaths.format_bytes(_at(bytes_in_by_channel, ch)), DotPaths.format_bytes(_at(bytes_out_by_channel, ch)),
+			ch, GSPaths.format_bytes(_at(bytes_in_by_channel, ch)), GSPaths.format_bytes(_at(bytes_out_by_channel, ch)),
 		])
 	var r := rtt()
 	lines.append("rtt %s" % ("%.0f ms" % r if r >= 0.0 else "not measured"))

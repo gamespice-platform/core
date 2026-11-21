@@ -1,13 +1,13 @@
 extends "dual_transport/selftest_base.gd"
 
-## Exercises [DotTransportDual]: a WebSocket and an ENet client on one server, a query datagram on the same UDP port, and the routing between them.
+## Exercises [GSTransportDual]: a WebSocket and an ENet client on one server, a query datagram on the same UDP port, and the routing between them.
 ## Real loopback sockets and peers: the point is the seam between two engine peers, and a mock would only test the mock.
 
 const SECTIONS := 14
 const CHECKS := 95
 
 func _ready() -> void:
-	DotLog.set_level(DotLog.Level.DEBUG if OS.get_environment("DUAL_DEBUG") != "" else DotLog.Level.ERROR)
+	GSLog.set_level(GSLog.Level.DEBUG if OS.get_environment("DUAL_DEBUG") != "" else GSLog.Level.ERROR)
 	_run()
 
 
@@ -60,14 +60,14 @@ func _run() -> void:
 func _test_listen() -> void:
 	_section("One listen, two backends, one public UDP port")
 
-	_transport = DotTransportDual.new()
+	_transport = GSTransportDual.new()
 	_transport.max_clients = 8
 	var res := _transport.create_server(PORT, "127.0.0.1")
 	_check(res.ok, "the server listens")
 	if not res.ok:
 		return
 
-	_server = res.value as DotDualPeer
+	_server = res.value as GSDualPeer
 	_check(_server != null and _server.websocket != null and _server.enet != null, "both backends are up")
 	_check(_transport.advertised_enet_port() == PORT, "ENet is advertised on the game port number")
 	_check(_server.demux != null and _server.demux.public_port() == PORT, "the demux owns UDP %d" % PORT)
@@ -81,9 +81,9 @@ func _test_listen() -> void:
 func _test_both_clients_join() -> void:
 	_section("A WebSocket client and an ENet client join the same server")
 
-	var ws_t := DotTransportWebSocket.new()
+	var ws_t := GSTransportWebSocket.new()
 	var ws_res := ws_t.create_client("ws://127.0.0.1:%d" % PORT)
-	var en_t := DotTransportENet.new()
+	var en_t := GSTransportENet.new()
 	var en_res := en_t.create_client("127.0.0.1", PORT)
 	_check(ws_res.ok and en_res.ok, "both clients are created")
 	if not (ws_res.ok and en_res.ok):
@@ -158,20 +158,20 @@ func _test_routing() -> void:
 	_check(seen.get("from-ws", [0])[0] == ws_id, "and the WebSocket client as itself")
 
 
-## [DotMeteredPeer] behind a real [SceneMultiplayer], on both transports: the wrapper must be invisible to everything above it.
+## [GSMeteredPeer] behind a real [SceneMultiplayer], on both transports: the wrapper must be invisible to everything above it.
 ## SceneMultiplayer decides "connected" from its status and peer_connected(1); getting either wrong is a client that never connects, silently.
 func _test_metered_clients() -> void:
 	_section("A metered client is counted, and SceneMultiplayer cannot tell it is there")
 
 	var before := _connected_ids.size()
-	var ws_res := DotTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % PORT)
-	var en_res := DotTransportENet.new().create_client("127.0.0.1", PORT)
+	var ws_res := GSTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % PORT)
+	var en_res := GSTransportENet.new().create_client("127.0.0.1", PORT)
 	if not (ws_res.ok and en_res.ok):
 		_check(false, "both metered clients are created")
 		return
-	var ws := DotMeteredPeer.wrap(ws_res.value) as DotMeteredPeer
-	var en := DotMeteredPeer.wrap(en_res.value) as DotMeteredPeer
-	_check(DotMeteredPeer.wrap(ws) == ws, "wrapping a meter again is the same meter")
+	var ws := GSMeteredPeer.wrap(ws_res.value) as GSMeteredPeer
+	var en := GSMeteredPeer.wrap(en_res.value) as GSMeteredPeer
+	_check(GSMeteredPeer.wrap(ws) == ws, "wrapping a meter again is the same meter")
 
 	var api := SceneMultiplayer.new()
 	var joined := [false]
@@ -191,14 +191,14 @@ func _test_metered_clients() -> void:
 	# them as commands.
 	api.multiplayer_peer = null
 	var en_id := en.get_unique_id()
-	_server.transfer_channel = DotTransport.Channel.STATE
+	_server.transfer_channel = GSTransport.Channel.STATE
 	for id in [ws_id, en_id]:
 		_server.set_target_peer(id)
 		_server.put_packet(PackedByteArray([1, 2, 3, 4, 5, 6, 7, 8, 9, 10]))
 	_server.transfer_channel = 0
 	var got := {}
 	await _pump_until(func() -> bool:
-		for p: DotMeteredPeer in [ws, en]:
+		for p: GSMeteredPeer in [ws, en]:
 			p.poll()
 			while p.get_available_packet_count() > 0:
 				got[p.transport_name()] = "%d@%d" % [p.get_packet_channel(), p.get_packet().size()]
@@ -265,7 +265,7 @@ func _test_query_on_shared_port() -> void:
 	q.put_packet(PackedByteArray([1, 2, 3, 4, 5, 6, 7, 8]))
 	await _pump_frames(5)
 	_check(_server.demux.relay_count() == relays_before, "noise from a stranger opens no relay")
-	_check(DotUdpDemux.is_enet_connect(PackedByteArray([0x7F, 0xFF, 0, 0])), "an unassigned ENet header reads as a connect")
+	_check(GSUdpDemux.is_enet_connect(PackedByteArray([0x7F, 0xFF, 0, 0])), "an unassigned ENet header reads as a connect")
 	q.close()
 
 
@@ -316,20 +316,20 @@ class SendWatch:
 		return n
 
 
-## Armed by deleting the [method DotDualPeer._enet_sendable] checks in _put_packet_script, or only the _enet_departing line in
+## Armed by deleting the [method GSDualPeer._enet_sendable] checks in _put_packet_script, or only the _enet_departing line in
 ## _send_enet_except: the watch then counts the engine's errors.
 func _test_leaving_together() -> void:
 	_section("Two ENet clients leaving in one poll: the first one's handler sends to the second")
 
 	var port := PORT + 50
-	var t := DotTransportDual.new()
+	var t := GSTransportDual.new()
 	var made := t.create_server(port, "127.0.0.1")
-	if not made.ok or (made.value as DotDualPeer).demux == null:
+	if not made.ok or (made.value as GSDualPeer).demux == null:
 		_check(false, "a dual server with its UDP port shared")
 		return
-	var server := made.value as DotDualPeer
-	var a := DotTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
-	var b := DotTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
+	var server := made.value as GSDualPeer
+	var a := GSTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
+	var b := GSTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
 	var deadline := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline and int(server.peer_counts().get("enet", 0)) < 2:
 		server.poll()
@@ -390,14 +390,14 @@ func _test_websocket_leaving() -> void:
 	_section("WebSocket clients leaving: nothing is sent to a socket that is no longer open")
 
 	var port := PORT + 60
-	var made := DotTransportDual.new().create_server(port, "127.0.0.1")
+	var made := GSTransportDual.new().create_server(port, "127.0.0.1")
 	if not made.ok:
 		_check(false, "a dual server")
 		return
-	var server := made.value as DotDualPeer
+	var server := made.value as GSDualPeer
 	var clients: Array[MultiplayerPeer] = []
 	for i in 4:
-		clients.append(DotTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value)
+		clients.append(GSTransportWebSocket.new().create_client("ws://127.0.0.1:%d" % port).value)
 	var pump := func() -> void:
 		server.poll()
 		for c in clients:
@@ -458,7 +458,7 @@ func _test_websocket_leaving() -> void:
 	await _ws_server_closes_one(server, stayer, ids[3], watch)
 
 
-func _ws_heard_everything(server: DotDualPeer, stayer: MultiplayerPeer) -> void:
+func _ws_heard_everything(server: GSDualPeer, stayer: MultiplayerPeer) -> void:
 	var deadline := 0
 	# The one still there heard everything: two broadcasts and one targeted send per leaver.
 	# The per-peer path still delivers.
@@ -472,7 +472,7 @@ func _ws_heard_everything(server: DotDualPeer, stayer: MultiplayerPeer) -> void:
 	_check(heard.size() == 9, "the client that stayed heard every broadcast and every send to it (%d)" % heard.size())
 
 
-func _ws_server_closes_one(server: DotDualPeer, stayer: MultiplayerPeer, stayer_id: int, watch: SendWatch) -> void:
+func _ws_server_closes_one(server: GSDualPeer, stayer: MultiplayerPeer, stayer_id: int, watch: SendWatch) -> void:
 	var deadline := 0
 	# The server closes one: it stays in the engine's table, closing, until the next poll.
 	var before := watch.count()
@@ -499,7 +499,7 @@ func _test_enet_port_busy_degrades() -> void:
 
 	var squatter := PacketPeerUDP.new()
 	squatter.bind(PORT + 10, "127.0.0.1")
-	var t := DotTransportDual.new()
+	var t := GSTransportDual.new()
 	var res := t.create_server(PORT + 10, "127.0.0.1")
 	_check(res.ok, "the server still listens")
 	_check(not t.serves_enet() and t.advertised_enet_port() == 0, "without ENet, and it says so")
@@ -513,7 +513,7 @@ func _test_enet_port_busy_degrades() -> void:
 func _test_enet_server_bandwidth() -> void:
 	_section("A server's ENet does not tell its clients to throttle")
 
-	var t := DotTransportENet.new()
+	var t := GSTransportENet.new()
 	var res := t.create_server(PORT + 20, "127.0.0.1")
 	if not res.ok:
 		_check(false, "an ENet server listens on %d" % (PORT + 20))
@@ -521,7 +521,7 @@ func _test_enet_server_bandwidth() -> void:
 		return
 	var server := res.value as ENetMultiplayerPeer
 	# Through the transport too, so both ends agree about compression.
-	var made := DotTransportENet.new().create_client("127.0.0.1", PORT + 20)
+	var made := GSTransportENet.new().create_client("127.0.0.1", PORT + 20)
 	var client := made.value as ENetMultiplayerPeer if made.ok else ENetMultiplayerPeer.new()
 	var sent := 0
 	var got := 0
@@ -546,7 +546,7 @@ func _test_enet_server_bandwidth() -> void:
 		OS.delay_msec(8)
 	_check(sent > 100 and lowest == 32, "the client's throttle limit stays at full (lowest %d over %d packets)" % [lowest, sent])
 	_check(sent > 100 and got >= sent * 9 / 10, "and the server receives its packets (%d of %d)" % [got, sent])
-	# The packet throttle (DotTransportENet.packet_throttle_deceleration): set on both ends as
+	# The packet throttle (GSTransportENet.packet_throttle_deceleration): set on both ends as
 	# they connect, so a late acknowledgement never makes either drop its own unreliable
 	# packets. What it costs without is measured in GameSpice Net's relay_demo, section 4.
 	var client_side := client.get_peer(1)
@@ -557,7 +557,7 @@ func _test_enet_server_bandwidth() -> void:
 	var decel_server := int(server_side.get_statistic(ENetPacketPeer.PEER_PACKET_THROTTLE_DECELERATION)) if server_side != null else -1
 	_check(decel_client == 0 and decel_server == 0,
 		"neither end's packet throttle falls on a late acknowledgement (deceleration %d and %d)" % [decel_client, decel_server])
-	_check(DotTransportENet.new().describe().has("packet_throttle"), "describe() says what the throttle is")
+	_check(GSTransportENet.new().describe().has("packet_throttle"), "describe() says what the throttle is")
 	client.close()
 	server.close()
 
@@ -567,18 +567,18 @@ func _test_enet_peer_timeout() -> void:
 
 	# ENet's own numbers first, as the control: the same eight seconds must cost the client,
 	# or this section could not tell the two apart.
-	var stock := DotTransportENet.new()
+	var stock := GSTransportENet.new()
 	stock.peer_timeout_limit = 32
 	stock.peer_timeout_min_ms = 5000
 	stock.peer_timeout_max_ms = 30000
 	var dropped := await _quiet_client(stock, PORT + 21)
 	_check(dropped[0], "with ENet's defaults (32, 5 s) the server drops it (%s)" % dropped[1])
 
-	var kept := await _quiet_client(DotTransportENet.new(), PORT + 22)
+	var kept := await _quiet_client(GSTransportENet.new(), PORT + 22)
 	_check(not kept[0], "with the transport's defaults the server keeps it (%s)" % kept[1])
 	_check(int(kept[2]) > 0 and int(kept[2]) == int(kept[3]),
 		"and the client gets every reliable packet once it is back (%d of %d)" % [kept[2], kept[3]])
-	_check(DotTransportENet.new().describe().has("peer_timeout"), "describe() says what the timeouts are")
+	_check(GSTransportENet.new().describe().has("peer_timeout"), "describe() says what the timeouts are")
 
 
 
@@ -588,14 +588,14 @@ func _test_shutdown_reaches_enet() -> void:
 	_section("A server that shuts down tells its ENet clients at once")
 
 	var port := PORT + 40
-	var t := DotTransportDual.new()
+	var t := GSTransportDual.new()
 	var made := t.create_server(port, "127.0.0.1")
-	var shared := made.ok and (made.value as DotDualPeer).demux != null
+	var shared := made.ok and (made.value as GSDualPeer).demux != null
 	_check(shared, "a dual server with its UDP port shared")
 	if not shared:
 		return
-	var server := made.value as DotDualPeer
-	var client := DotTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
+	var server := made.value as GSDualPeer
+	var client := GSTransportENet.new().create_client("127.0.0.1", port).value as MultiplayerPeer
 	var joined := false
 	var deadline := Time.get_ticks_msec() + 5000
 	while Time.get_ticks_msec() < deadline and not joined:

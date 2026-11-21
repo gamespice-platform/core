@@ -1,8 +1,8 @@
-class_name DotLoadGate
+class_name GSLoadGate
 extends "res://addons/dot_core/loading/dot_load_gate_state.gd"
 
 ## One node a game holds closed while its level, camera and players arrive, then lifts a cover. Hold, require or freeze, then release; a map change holds again.
-## A host claims the cover via [constant HOST_META] ([method host_finished]); with none the gate shows its own [DotLoadingCover] and warms under it.
+## A host claims the cover via [constant HOST_META] ([method host_finished]); with none the gate shows its own [GSLoadingCover] and warms under it.
 ## [method of] finds it by [constant META]; also registered as [constant SERVICE].
 
 const CHANNEL := "dot.load_gate"
@@ -16,7 +16,7 @@ func _init() -> void:
 
 ## The gate for [param node]: the nearest one on [param node] or an ancestor, else the
 ## registered one, else null.
-static func of(node: Node) -> DotLoadGate:
+static func of(node: Node) -> GSLoadGate:
 	var n := node
 	while n != null:
 		if n.has_meta(META):
@@ -24,7 +24,7 @@ static func of(node: Node) -> DotLoadGate:
 			if g is Object and is_instance_valid(g):
 				return g
 		n = n.get_parent()
-	var s: Variant = DotRegistry.get_service(SERVICE)
+	var s: Variant = GSRegistry.get_service(SERVICE)
 	if s is Node and (s as Node).has_method(&"is_open"):
 		return s
 	return null
@@ -41,8 +41,8 @@ func _enter_tree() -> void:
 			parent.add_user_signal("ready_to_show")
 			_added_user_signal = true
 	if register_service:
-		_registered_as = SERVICE if service_scope == &"" else DotRegistry.scoped_name(SERVICE, service_scope)
-		DotRegistry.register(_registered_as, self)
+		_registered_as = SERVICE if service_scope == &"" else GSRegistry.scoped_name(SERVICE, service_scope)
+		GSRegistry.register(_registered_as, self)
 	if _host == null:
 		var host := _find_host()
 		if host != null:
@@ -59,7 +59,7 @@ func _ready() -> void:
 		_mute_audio()
 	if _state == State.CLOSED and _host == null:
 		_show_own_cover()
-	DotLog.debug(CHANNEL, "closed until the game is ready", {"hosted": _host != null})
+	GSLog.debug(CHANNEL, "closed until the game is ready", {"hosted": _host != null})
 
 
 func _exit_tree() -> void:
@@ -67,7 +67,7 @@ func _exit_tree() -> void:
 	if parent != null and parent.has_meta(META) and parent.get_meta(META) == self:
 		parent.remove_meta(META)
 	if _registered_as != &"":
-		DotRegistry.unregister_instance(_registered_as, self)
+		GSRegistry.unregister_instance(_registered_as, self)
 		_registered_as = &""
 	# Leaving the tree must never leave a body frozen, or its input off.
 	_settling = false
@@ -117,7 +117,7 @@ func _find_host() -> Object:
 func hold(reason: StringName, text: String = "") -> void:
 	_holds[reason] = text
 	_touch(reason)
-	DotLog.debug(CHANNEL, "held", {"reason": String(reason), "text": text})
+	GSLog.debug(CHANNEL, "held", {"reason": String(reason), "text": text})
 	_close()
 	_emit_progress()
 
@@ -128,7 +128,7 @@ func release(reason: StringName) -> void:
 	had = _requires.erase(reason) or had
 	if had:
 		_order.erase(reason)
-		DotLog.debug(CHANNEL, "released", {"reason": String(reason)})
+		GSLog.debug(CHANNEL, "released", {"reason": String(reason)})
 		_emit_progress()
 
 
@@ -152,7 +152,7 @@ func slice_msec(base_ms: int) -> int:
 		if arg.begins_with("--cover-slice-msec="):
 			wide = int(arg.get_slice("=", 1))
 	if wide < 0:
-		wide = 0 if DotPlatform.has_threads() else 24
+		wide = 0 if GSPlatform.has_threads() else 24
 	return maxi(base_ms, wide)
 
 
@@ -221,7 +221,7 @@ func warm_items() -> Array:
 ## Everything to warm: [member game_root]'s materials and meshes (when [member warm_game_root])
 ## plus [method warm_items].
 func collect_warm_items() -> Array:
-	var out: Array = DotRenderWarmup.collect(game_root) if warm_game_root and game_root != null else []
+	var out: Array = GSRenderWarmup.collect(game_root) if warm_game_root and game_root != null else []
 	for item: Variant in _warm_extra:
 		if not out.has(item):
 			out.append(item)
@@ -318,7 +318,7 @@ func _close() -> void:
 	if not is_hosted():
 		_show_own_cover()
 	if was_open:
-		DotLog.debug(CHANNEL, "closed again", {"reasons": _reason_strings()})
+		GSLog.debug(CHANNEL, "closed again", {"reasons": _reason_strings()})
 		closed.emit()
 
 
@@ -328,7 +328,7 @@ func _process(_delta: float) -> void:
 			_poll_requires()
 			if not _order.is_empty() and Time.get_ticks_msec() - _closed_msec > int(timeout_sec * 1000.0):
 				_timed_out.assign(_order)
-				DotLog.warn(CHANNEL, "the game did not become ready in time; showing it anyway", {
+				GSLog.warn(CHANNEL, "the game did not become ready in time; showing it anyway", {
 					"seconds": timeout_sec, "still_held": _reason_strings(),
 				})
 				_holds.clear()
@@ -342,7 +342,7 @@ func _process(_delta: float) -> void:
 			if not is_hosted() and _warmup == null:
 				_open()  # the host went away mid-warm-up
 			elif is_hosted() and Time.get_ticks_msec() - _host_wait_msec > int(host_wait_sec * 1000.0):
-				DotLog.warn(CHANNEL, "the host did not finish its warm-up in time; opening", {"seconds": host_wait_sec})
+				GSLog.warn(CHANNEL, "the host did not finish its warm-up in time; opening", {"seconds": host_wait_sec})
 				_open()
 
 
@@ -358,7 +358,7 @@ func _physics_process(_delta: float) -> void:
 		if _settle_ran >= settle_frames or rest:
 			_settling = false
 			_settle_done = true
-			DotLog.debug(CHANNEL, "settled", {"frames": _settle_ran, "at_rest": rest})
+			GSLog.debug(CHANNEL, "settled", {"frames": _settle_ran, "at_rest": rest})
 	else:
 		_settled += 1
 
@@ -384,7 +384,7 @@ func _begin_settle() -> bool:
 		return false
 	_settling = true
 	_settle_ran = 0
-	DotLog.debug(CHANNEL, "settling the frozen nodes under the cover", {"frames": settle_frames})
+	GSLog.debug(CHANNEL, "settling the frozen nodes under the cover", {"frames": settle_frames})
 	return true
 
 
@@ -499,7 +499,7 @@ func _poll_requires() -> void:
 		if done:
 			_requires.erase(reason)
 			_order.erase(reason)
-			DotLog.debug(CHANNEL, "requirement met", {"reason": String(reason)})
+			GSLog.debug(CHANNEL, "requirement met", {"reason": String(reason)})
 			_emit_progress()
 
 
@@ -531,7 +531,7 @@ func _begin_warming() -> void:
 		return
 	if _warmup != null and is_instance_valid(_warmup):
 		return  # kept running through a close: it opens the gate when it ends
-	var warm := DotRenderWarmup.new()
+	var warm := GSRenderWarmup.new()
 	warm.name = "LoadGateWarmup"
 	warm.follow_camera = warm_survives_close
 	warm.timeout_sec = warm_timeout_sec
@@ -552,7 +552,7 @@ func _on_own_warm_finished(count: int, warm: Node, started: int) -> void:
 	if warm != _warmup:
 		return
 	_warmup = null
-	DotLog.debug(CHANNEL, "drew the game's materials once under the cover", {"items": count, "ms": Time.get_ticks_msec() - started})
+	GSLog.debug(CHANNEL, "drew the game's materials once under the cover", {"items": count, "ms": Time.get_ticks_msec() - started})
 	if _state == State.WARMING:
 		_open()
 
@@ -573,7 +573,7 @@ func _open() -> void:
 	_hide_placed_cover()
 	_progress_text = ""
 	_fraction = -1.0
-	DotLog.info(CHANNEL, "the game is ready to be seen", {
+	GSLog.info(CHANNEL, "the game is ready to be seen", {
 		"ms": Time.get_ticks_msec() - _closed_msec, "hosted": is_hosted(),
 		"timed_out": _timed_out.map(func(r: StringName) -> String: return String(r)),
 	})
@@ -630,13 +630,13 @@ func _emit_progress() -> void:
 
 ## The cover the gate shows when no host does. Override to build your own; the default is
 ## [member cover] if assigned, else an instance of [member cover_scene], else a
-## [DotLoadingCover].
+## [GSLoadingCover].
 func _make_cover() -> Node:
 	if cover != null:
 		return cover
 	if cover_scene != null:
 		return cover_scene.instantiate()
-	return DotLoadingCover.new()
+	return GSLoadingCover.new()
 
 
 func _show_own_cover() -> void:

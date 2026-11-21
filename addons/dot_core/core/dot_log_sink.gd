@@ -1,8 +1,8 @@
 @tool
-class_name DotLogSink
+class_name GSLogSink
 extends Node
 
-## Writes [DotLog] output to a rotating file, and optionally forwards it. Buffered: a flush per line is a
+## Writes [GSLog] output to a rotating file, and optionally forwards it. Buffered: a flush per line is a
 ## syscall (an IndexedDB transaction on web). A crash loses at most [member flush_interval_sec]; [member flush_on_error] narrows it.
 
 const CHANNEL := "logsink"
@@ -35,9 +35,9 @@ const CHANNEL := "logsink"
 ## One JSON object per line instead of the human format, for logs shipped to a collector.
 @export var json_lines: bool = false
 
-## Minimum level this sink records, independent of [DotLog]'s threshold, so a file can keep
+## Minimum level this sink records, independent of [GSLog]'s threshold, so a file can keep
 ## DEBUG while the console shows INFO.
-@export var level: DotLog.Level = DotLog.Level.DEBUG
+@export var level: GSLog.Level = GSLog.Level.DEBUG
 
 ## Include wall-clock timestamps; on here because a file outlives the session's tick count.
 @export var timestamps: bool = true
@@ -76,7 +76,7 @@ func _ready() -> void:
 		if not opened.ok:
 			# A log sink that cannot open its file must not take the process
 			# down with it, and must not fail silently either.
-			DotLog.warn(
+			GSLog.warn(
 				CHANNEL, opened.error.message, {"detail": opened.error.detail}
 			)
 
@@ -90,9 +90,9 @@ func _ready() -> void:
 	add_child(_timer)
 
 	_sink = _on_record
-	DotLog.add_sink(_sink)
+	GSLog.add_sink(_sink)
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"log sink started",
 		{"path": _file_path if write_file else "<none>"}
@@ -101,7 +101,7 @@ func _ready() -> void:
 
 func _exit_tree() -> void:
 	if _sink.is_valid():
-		DotLog.remove_sink(_sink)
+		GSLog.remove_sink(_sink)
 	flush()
 	if _file != null:
 		_file.close()
@@ -113,7 +113,7 @@ func _exit_tree() -> void:
 
 
 func _on_record(record: Dictionary) -> void:
-	var rec_level: int = record.get("level", DotLog.Level.INFO)
+	var rec_level: int = record.get("level", GSLog.Level.INFO)
 	if rec_level < level:
 		return
 
@@ -127,13 +127,13 @@ func _on_record(record: Dictionary) -> void:
 
 	if _buffer.size() >= max_buffered_lines:
 		flush()
-	elif flush_on_error and rec_level >= DotLog.Level.ERROR:
+	elif flush_on_error and rec_level >= GSLog.Level.ERROR:
 		flush()
 
 
 func _format(record: Dictionary) -> String:
 	if json_lines:
-		return DotLog.format_json(record)
+		return GSLog.format_json(record)
 
 	var parts := PackedStringArray()
 
@@ -145,26 +145,26 @@ func _format(record: Dictionary) -> String:
 		)
 
 	# level_column rather than LEVEL_TAGS directly: the level is always written, and how
-	# wide it is written is DotLog's decision, so a process that chose the spelled-out
+	# wide it is written is GSLog's decision, so a process that chose the spelled-out
 	# style does not get one thing in its console and another in its file.
-	parts.append(DotLog.level_column(int(record.get("level", 2))))
+	parts.append(GSLog.level_column(int(record.get("level", 2))))
 
 	var channel: String = record.get("channel", "")
 	if channel != "":
-		parts.append("%-8s" % DotLog.display_channel(channel))
+		parts.append("%-8s" % GSLog.display_channel(channel))
 
 	parts.append(str(record.get("message", "")))
 
 	var fields: Dictionary = record.get("fields", {})
 	if not fields.is_empty():
-		parts.append(DotLog.format_fields(fields))
+		parts.append(GSLog.format_fields(fields))
 
 	return " ".join(parts)
 
 
 
-func _open_file() -> DotResult:
-	var dir_res := DotPaths.ensure_dir(directory)
+func _open_file() -> GSResult:
+	var dir_res := GSPaths.ensure_dir(directory)
 	if not dir_res.ok:
 		return dir_res
 
@@ -186,8 +186,8 @@ func _open_file() -> DotResult:
 		_file = FileAccess.open(_file_path, FileAccess.WRITE)
 
 	if _file == null:
-		return DotResult.failure(
-			DotError.from_engine(
+		return GSResult.failure(
+			GSError.from_engine(
 				FileAccess.get_open_error(),
 				"opening log file '%s'" % _file_path
 			)
@@ -200,7 +200,7 @@ func _open_file() -> DotResult:
 		_bytes_written = 0
 
 	_prune_old_files()
-	return DotResult.success(_file_path)
+	return GSResult.success(_file_path)
 
 
 ## Writes the buffer out. Safe to call at any time.
@@ -220,14 +220,14 @@ func flush() -> void:
 
 	# Persist through IndexedDB on web, where an unsynced write is lost on tab
 	# close — which is exactly when you want the log.
-	DotWeb.sync_filesystem()
+	GSWeb.sync_filesystem()
 
 	if max_file_bytes > 0 and _bytes_written >= max_file_bytes:
 		_rotate()
 
 
 func _rotate() -> void:
-	DotLog.debug(CHANNEL, "rotating log", {"bytes": _bytes_written})
+	GSLog.debug(CHANNEL, "rotating log", {"bytes": _bytes_written})
 
 	if _file != null:
 		_file.close()
@@ -242,7 +242,7 @@ func _rotate() -> void:
 	new_file_per_run = saved
 
 	if not res.ok:
-		DotLog.warn(CHANNEL, "rotation failed", {"detail": res.error.detail})
+		GSLog.warn(CHANNEL, "rotation failed", {"detail": res.error.detail})
 
 
 func _prune_old_files() -> void:
@@ -274,21 +274,21 @@ func _prune_old_files() -> void:
 		if victim == _file_path:
 			continue
 		DirAccess.remove_absolute(victim)
-		DotLog.debug(CHANNEL, "pruned old log", {"file": names[i]})
+		GSLog.debug(CHANNEL, "pruned old log", {"file": names[i]})
 
 
 func _setup_forwarding() -> void:
 	var parts := forward_address.rsplit(":", true, 1)
 	if parts.size() != 2 or not parts[1].is_valid_int():
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"forward_address must be host:port",
 			{"value": forward_address}
 		)
 		return
 
-	if not DotPlatform.has_udp():
-		DotLog.warn(
+	if not GSPlatform.has_udp():
+		GSLog.warn(
 			CHANNEL, "log forwarding needs UDP, which this platform lacks"
 		)
 		return
@@ -296,7 +296,7 @@ func _setup_forwarding() -> void:
 	_udp = PacketPeerUDP.new()
 	var err := _udp.connect_to_host(parts[0], parts[1].to_int())
 	if err != OK:
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"could not set up log forwarding",
 			{"detail": error_string(err)}
@@ -304,7 +304,7 @@ func _setup_forwarding() -> void:
 		_udp = null
 		return
 
-	DotLog.info(CHANNEL, "forwarding logs", {"to": forward_address})
+	GSLog.info(CHANNEL, "forwarding logs", {"to": forward_address})
 
 
 func describe() -> Dictionary:
@@ -313,5 +313,5 @@ func describe() -> Dictionary:
 		"buffered": _buffer.size(),
 		"bytes": _bytes_written,
 		"forwarding": forward_address,
-		"level": DotLog.level_name(level),
+		"level": GSLog.level_name(level),
 	}

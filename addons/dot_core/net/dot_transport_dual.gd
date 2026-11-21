@@ -1,9 +1,9 @@
 @tool
-class_name DotTransportDual
-extends DotTransport
+class_name GSTransportDual
+extends GSTransport
 
-## One server, two audiences: browsers over WebSocket (TCP [code]port[/code]) and native clients over ENet (UDP [member enet_port], 0 = same) as a [DotDualPeer].
-## [member share_udp_port] gives the public UDP port to a [DotUdpDemux]. ENet failure degrades to WebSocket only with a WARN. Clients use [DotTransportAuto].
+## One server, two audiences: browsers over WebSocket (TCP [code]port[/code]) and native clients over ENet (UDP [member enet_port], 0 = same) as a [GSDualPeer].
+## [member share_udp_port] gives the public UDP port to a [GSUdpDemux]. ENet failure degrades to WebSocket only with a WARN. Clients use [GSTransportAuto].
 
 ## UDP port for ENet. 0: the same number as the game port.
 @export var enet_port: int = 0
@@ -12,24 +12,24 @@ extends DotTransport
 ## proxied server binds WebSocket to loopback while ENet, which a proxy cannot carry, faces the world.
 @export var enet_bind_address: String = ""
 
-## Put ENet and the query protocols on one UDP port via a [DotUdpDemux]. Costs a relay per
+## Put ENet and the query protocols on one UDP port via a [GSUdpDemux]. Costs a relay per
 ## ENet packet, so turn it off when the query protocols use another port.
 @export var share_udp_port: bool = true
 
 enum TlsHelloScreen { AUTO = 0, ON = 1, OFF = 2 }
 
-## Whether a [DotTcpScreen] holds the public TCP port with the WebSocket server on loopback behind it, closing a TLS ClientHello
+## Whether a [GSTcpScreen] holds the public TCP port with the WebSocket server on loopback behind it, closing a TLS ClientHello
 ## at once (else a native client waits out a 2.5 s TLS timeout). Auto screens every plain listener (about 0.5 ms at 32 clients),
 ## also behind a proxy; never when the server terminates TLS.
 @export_enum("Auto", "On", "Off") var tls_hello_screen: int = TlsHelloScreen.AUTO
 
 ## Sub-transport for browsers. Created with defaults if unset.
-@export var websocket: DotTransportWebSocket = null
+@export var websocket: GSTransportWebSocket = null
 
 ## Sub-transport for native clients. Created with defaults if unset.
-@export var enet: DotTransportENet = null
+@export var enet: GSTransportENet = null
 
-var _peer: DotDualPeer = null
+var _peer: GSDualPeer = null
 var _enet_bound_port: int = 0
 var _enet_reason: String = ""
 
@@ -53,7 +53,7 @@ func advertised_enet_port() -> int:
 
 
 ## The demux owning the public UDP port, or null.
-func demux() -> DotUdpDemux:
+func demux() -> GSUdpDemux:
 	return _peer.demux if _peer != null else null
 
 
@@ -71,20 +71,20 @@ func scheme() -> String:
 	return _websocket().scheme()
 
 
-func _is_available() -> DotResult:
+func _is_available() -> GSResult:
 	return _websocket()._is_available()
 
 
-func _create_server(port: int, bind_address: String) -> DotResult:
+func _create_server(port: int, bind_address: String) -> GSResult:
 	var ws_t := _websocket()
 	_share_limits(ws_t)
-	var tcp_screen: DotTcpScreen = null
-	var ws_res: DotResult = null
+	var tcp_screen: GSTcpScreen = null
+	var ws_res: GSResult = null
 	if _screens(ws_t, bind_address):
 		var screened := _build_screened_websocket(ws_t, port, bind_address)
 		if not screened.ok:
 			return screened
-		ws_res = DotResult.success(screened.value["peer"])
+		ws_res = GSResult.success(screened.value["peer"])
 		tcp_screen = screened.value["screen"]
 	else:
 		ws_res = ws_t._create_server(port, bind_address)
@@ -95,7 +95,7 @@ func _create_server(port: int, bind_address: String) -> DotResult:
 	var udp_port := enet_port if enet_port > 0 else port
 
 	var enet_peer: MultiplayerPeer = null
-	var mux: DotUdpDemux = null
+	var mux: GSUdpDemux = null
 	var udp_bind := enet_bind_address if enet_bind_address.strip_edges() != "" else bind_address
 	var built := _build_enet(udp_port, udp_bind)
 	if built.ok:
@@ -111,16 +111,16 @@ func _create_server(port: int, bind_address: String) -> DotResult:
 				_enet_bound_port = int(host.call("get_local_port")) if host != null else 0
 	else:
 		_enet_reason = built.error.message
-		DotLog.warn(
+		GSLog.warn(
 			CHANNEL,
 			"ENet unavailable, serving WebSocket only — native clients will use WebSocket",
 			{"why": built.error.message, "detail": built.error.detail, "setting": "enet_port"}
 		)
 
-	_peer = DotDualPeer.new()
+	_peer = GSDualPeer.new()
 	_peer.setup(ws_peer, enet_peer, mux, tcp_screen)
 
-	DotLog.info(
+	GSLog.info(
 		CHANNEL,
 		"dual transport",
 		{
@@ -130,10 +130,10 @@ func _create_server(port: int, bind_address: String) -> DotResult:
 			"tls_hello_screen": tcp_screen != null,
 		}
 	)
-	return DotResult.success(_peer as MultiplayerPeer)
+	return GSResult.success(_peer as MultiplayerPeer)
 
 
-func _screens(ws_t: DotTransportWebSocket, _bind_address: String) -> bool:
+func _screens(ws_t: GSTransportWebSocket, _bind_address: String) -> bool:
 	if ws_t.use_tls or tls_hello_screen == TlsHelloScreen.OFF:
 		return false
 	return true
@@ -145,11 +145,11 @@ static func is_loopback_bind(bind_address: String) -> bool:
 	return a == "localhost" or a == "::1" or a.begins_with("127.")
 
 
-## The public TCP port to a [DotTcpScreen], the WebSocket server on loopback behind it:
+## The public TCP port to a [GSTcpScreen], the WebSocket server on loopback behind it:
 ## {peer, screen}. The public bind failing fails the server, as it did unscreened; the
 ## loopback side failing falls back to WebSocket on the public port with a WARN.
-func _build_screened_websocket(ws_t: DotTransportWebSocket, port: int, bind_address: String) -> DotResult:
-	var tcp_screen := DotTcpScreen.new()
+func _build_screened_websocket(ws_t: GSTransportWebSocket, port: int, bind_address: String) -> GSResult:
+	var tcp_screen := GSTcpScreen.new()
 	tcp_screen.first_byte_timeout_sec = ws_t.handshake_timeout_sec
 	tcp_screen.max_links = maxi(64, max_clients * 2)
 	var opened := tcp_screen.open(port, bind_address, 0)
@@ -165,10 +165,10 @@ func _build_screened_websocket(ws_t: DotTransportWebSocket, port: int, bind_addr
 		var made := ws_t._create_server(inner_port, "127.0.0.1")
 		if made.ok:
 			tcp_screen.set_inner_port(inner_port)
-			return DotResult.success({"peer": made.value, "screen": tcp_screen})
+			return GSResult.success({"peer": made.value, "screen": tcp_screen})
 
 	tcp_screen.close()
-	DotLog.warn(
+	GSLog.warn(
 		CHANNEL,
 		"no loopback port for the WebSocket server; serving it unscreened, a TLS hello waits out the handshake",
 		{"setting": "tls_hello_screen"}
@@ -176,7 +176,7 @@ func _build_screened_websocket(ws_t: DotTransportWebSocket, port: int, bind_addr
 	var direct := ws_t._create_server(port, bind_address)
 	if not direct.ok:
 		return direct
-	return DotResult.success({"peer": direct.value, "screen": null})
+	return GSResult.success({"peer": direct.value, "screen": null})
 
 
 static func _free_loopback_port() -> int:
@@ -188,7 +188,7 @@ static func _free_loopback_port() -> int:
 	return free
 
 
-func _build_enet(udp_port: int, bind_address: String) -> DotResult:
+func _build_enet(udp_port: int, bind_address: String) -> GSResult:
 	var en := _enet()
 	_share_limits(en)
 	var avail := en._is_available()
@@ -199,7 +199,7 @@ func _build_enet(udp_port: int, bind_address: String) -> DotResult:
 		var direct := en._create_server(udp_port, bind_address)
 		if not direct.ok:
 			return direct
-		return DotResult.success({"peer": direct.value, "demux": null})
+		return GSResult.success({"peer": direct.value, "demux": null})
 
 	# ENet on loopback, on a port the OS picks: nothing outside reaches it except
 	# through the demux, and ENet's own bind cannot collide with the public one.
@@ -212,42 +212,42 @@ func _build_enet(udp_port: int, bind_address: String) -> DotResult:
 	var loopback_port := int(host.call("get_local_port")) if host != null else 0
 	if loopback_port <= 0:
 		peer.close()
-		return DotResult.fail(DotError.CODE_INTERNAL, "ENet's loopback port is unknown.")
+		return GSResult.fail(GSError.CODE_INTERNAL, "ENet's loopback port is unknown.")
 
-	var mux := DotUdpDemux.new()
+	var mux := GSUdpDemux.new()
 	mux.max_relays = maxi(64, max_clients * 2)
 	var opened := mux.open(udp_port, bind_address, loopback_port)
 	if not opened.ok:
 		peer.close()
 		return opened
 
-	return DotResult.success({"peer": peer, "demux": mux})
+	return GSResult.success({"peer": peer, "demux": mux})
 
 
-func _create_client(address: String, port: int) -> DotResult:
-	return DotResult.fail(
-		DotError.CODE_UNSUPPORTED,
-		"DotTransportDual is server-only.",
-		"a client connects with DotTransportENet or DotTransportWebSocket"
+func _create_client(address: String, port: int) -> GSResult:
+	return GSResult.fail(
+		GSError.CODE_UNSUPPORTED,
+		"GSTransportDual is server-only.",
+		"a client connects with GSTransportENet or GSTransportWebSocket"
 	)
 
 
-func _share_limits(t: DotTransport) -> void:
+func _share_limits(t: GSTransport) -> void:
 	t.max_clients = max_clients
 	t.in_bandwidth = in_bandwidth
 	t.out_bandwidth = out_bandwidth
 	t.connect_timeout_sec = connect_timeout_sec
 
 
-func _websocket() -> DotTransportWebSocket:
+func _websocket() -> GSTransportWebSocket:
 	if websocket == null:
-		websocket = DotTransportWebSocket.new()
+		websocket = GSTransportWebSocket.new()
 	return websocket
 
 
-func _enet() -> DotTransportENet:
+func _enet() -> GSTransportENet:
 	if enet == null:
-		enet = DotTransportENet.new()
+		enet = GSTransportENet.new()
 	return enet
 
 

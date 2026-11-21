@@ -1,4 +1,4 @@
-class_name DotNativeParity
+class_name GSNativeParity
 extends RefCounted
 
 ## Holds a native (GDExtension) twin to its script original: the same inputs through both, answers compared to the bit.
@@ -7,8 +7,8 @@ extends RefCounted
 ## Set the environment variable [constant ENV_REQUIRED] to 1 on a machine that must have the library: a skip then fails.
 ##
 ## [codeblock]
-## var p := DotNativeParity.new("crc")
-## var r := p.compare(&"DotSimCrc", inputs, DotMapVpk.crc32_script, func(x): return DotSimCrc.new().crc32(x))
+## var p := GSNativeParity.new("crc")
+## var r := p.compare(&"GSSimCrc", inputs, GSMapVpk.crc32_script, func(x): return GSSimCrc.new().crc32(x))
 ## # r.status is PASS, FAIL or SKIPPED; r.first (the first differing case) is "" unless FAIL.
 ## [/codeblock]
 

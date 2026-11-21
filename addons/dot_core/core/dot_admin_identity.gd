@@ -1,4 +1,4 @@
-class_name DotAdminIdentity
+class_name GSAdminIdentity
 extends RefCounted
 
 ## Admin-only identity gate for an api with `identity(token)` and `permit(actor, flag)` hooks (GameSpice Workbench, GameSpice Radio), duck-typed so GameSpice Auth and GameSpice Console stay optional.
@@ -7,7 +7,7 @@ const ACTOR_PREFIX := "id:"
 
 ## Log channel for refusals and admissions.
 var channel := "admin"
-## Callable(token) -> identity or null; the host backs it with GameSpice Auth. An identity is an Object (DotAuthIdentity) or a Dictionary with `uid`.
+## Callable(token) -> identity or null; the host backs it with GameSpice Auth. An identity is an Object (GSAuthIdentity) or a Dictionary with `uid`.
 var resolver: Callable = Callable()
 ## Uids allowed in. Deny by default: with no uid and no group listed, nobody is admitted.
 var admin_uids := PackedStringArray()
@@ -30,14 +30,14 @@ func authenticate(token: String) -> Variant:
 		return null
 	var uid := _uid_of(who)
 	if uid.is_empty() or _is_guest(who) or _is_expired(who):
-		DotLog.warn(channel, "identity refused", {"why": "anonymous, guest or expired"})
+		GSLog.warn(channel, "identity refused", {"why": "anonymous, guest or expired"})
 		return null
 	if not (admin_uids.has(uid) or _in_admin_group(who)):
-		DotLog.warn(channel, "identity refused", {"uid": uid, "why": "not an admin"})
+		GSLog.warn(channel, "identity refused", {"uid": uid, "why": "not an admin"})
 		return null
 	var actor := ACTOR_PREFIX + uid
 	_admitted[actor] = true
-	DotLog.info(channel, "identity admitted", {"uid": uid})
+	GSLog.info(channel, "identity admitted", {"uid": uid})
 	return actor
 
 

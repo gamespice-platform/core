@@ -1,7 +1,7 @@
-class_name DotHttpRequest
+class_name GSHttpRequest
 extends RefCounted
 
-## One parsed request handed to a [DotHttpServer] route.
+## One parsed request handed to a [GSHttpServer] route.
 
 var method := ""
 ## Percent-decoded path, always beginning with "/".
@@ -25,11 +25,11 @@ func body_text() -> String:
 
 
 ## The body parsed as JSON; a failed result when it is not valid JSON.
-func json_body() -> DotResult:
+func json_body() -> GSResult:
 	var j := JSON.new()
 	if j.parse(body_text()) != OK:
-		return DotResult.fail(DotError.CODE_PARSE, "body is not valid JSON", j.get_error_message())
-	return DotResult.success(j.data)
+		return GSResult.fail(GSError.CODE_PARSE, "body is not valid JSON", j.get_error_message())
+	return GSResult.success(j.data)
 
 
 ## The token of an "Authorization: Bearer" header, or "".

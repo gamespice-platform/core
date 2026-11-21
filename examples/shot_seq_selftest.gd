@@ -1,6 +1,6 @@
 extends Node
 
-## DotShotSeq: off unless DOT_SHOT_FRAMES is set, clamps frames and seconds, and writes "<still>.seq/NNN.png" frames, the names tools/shot_post.sh and seq_to_mp4.sh read.
+## GSShotSeq: off unless DOT_SHOT_FRAMES is set, clamps frames and seconds, and writes "<still>.seq/NNN.png" frames, the names tools/shot_post.sh and seq_to_mp4.sh read.
 ## godot --headless --path . res://examples/shot_seq_selftest.tscn
 
 const SECTIONS := 4
@@ -33,7 +33,7 @@ func _ready() -> void:
 
 func _env_section() -> void:
 	OS.unset_environment("DOT_SHOT_FRAMES")
-	var seq := DotShotSeq.new()
+	var seq := GSShotSeq.new()
 	_check(not seq.enabled(), "off when DOT_SHOT_FRAMES is not set")
 	OS.set_environment("DOT_SHOT_FRAMES", "4")
 	_check(seq.enabled(), "on when DOT_SHOT_FRAMES is 4")
@@ -46,7 +46,7 @@ func _record_section() -> void:
 	var dir := ProjectSettings.globalize_path("user://shot_seq_selftest")
 	DirAccess.make_dir_recursive_absolute(dir)
 	var still := dir.path_join("still.png")
-	var seq := DotShotSeq.new()
+	var seq := GSShotSeq.new()
 	OS.set_environment("DOT_SHOT_FRAMES", "3")
 	OS.set_environment("DOT_SHOT_SECS", "0.2")
 	_check(seq.enabled(), "enabled with 3 frames over 0.2 s")
@@ -78,7 +78,7 @@ func _record_section() -> void:
 
 
 func _clamp_section() -> void:
-	var seq := DotShotSeq.new()
+	var seq := GSShotSeq.new()
 	OS.set_environment("DOT_SHOT_FRAMES", "500")
 	_check(seq.enabled(), "a huge frame count still enables (clamped to 48)")
 	OS.unset_environment("DOT_SHOT_FRAMES")
@@ -89,7 +89,7 @@ func _clamp_section() -> void:
 
 func _follow_section() -> void:
 	var dir := ProjectSettings.globalize_path("user://shot_seq_selftest")
-	var seq := DotShotSeq.new()
+	var seq := GSShotSeq.new()
 	var vp := SubViewport.new()
 	vp.size = Vector2i(8, 8)
 	vp.render_target_update_mode = SubViewport.UPDATE_ALWAYS

@@ -1,5 +1,5 @@
 @tool
-class_name DotRandomTable
+class_name GSRandomTable
 extends Resource
 
 ## A weighted table of ids with three draw policies: WITH_REPLACEMENT (independent), WITHOUT_REPLACEMENT (a deck), PITY (weight climbs per miss).
@@ -57,7 +57,7 @@ func add(
 	weight: float = 1.0,
 	pity_step: float = 0.0,
 	tag: StringName = &""
-) -> DotRandomTable:
+) -> GSRandomTable:
 	ids.append(id)
 	weights.append(weight)
 	pity_steps.append(pity_step)
@@ -72,13 +72,13 @@ func index_of(id: StringName) -> int:
 
 ## Checks the table is usable before anything draws from it.
 ## Called at boot so a malformed table fails start-up, not a drop at the moment a player kills something.
-func validate() -> DotResult:
+func validate() -> GSResult:
 	var n := ids.size()
 	if n == 0:
-		return DotResult.fail(DotError.CODE_INVALID, "a table with no entries draws nothing")
+		return GSResult.fail(GSError.CODE_INVALID, "a table with no entries draws nothing")
 	if weights.size() != n or pity_steps.size() != n or tags.size() != n:
-		return DotResult.fail(
-			DotError.CODE_INVALID,
+		return GSResult.fail(
+			GSError.CODE_INVALID,
 			"a table's parallel arrays disagree",
 			"%d ids, %d weights, %d pity steps, %d tags"
 			% [n, weights.size(), pity_steps.size(), tags.size()]
@@ -89,10 +89,10 @@ func validate() -> DotResult:
 	for i in range(n):
 		var id := ids[i]
 		if id == &"":
-			return DotResult.fail(DotError.CODE_INVALID, "entry %d has no id" % i)
+			return GSResult.fail(GSError.CODE_INVALID, "entry %d has no id" % i)
 		if seen.has(id):
-			return DotResult.fail(
-				DotError.CODE_INVALID,
+			return GSResult.fail(
+				GSError.CODE_INVALID,
 				"entry id '%s' appears twice" % id,
 				"two entries with one id cannot be told apart by a pity counter"
 			)
@@ -100,14 +100,14 @@ func validate() -> DotResult:
 		if weights[i] > 0.0:
 			total += weights[i]
 	if total <= 0.0:
-		return DotResult.fail(
-			DotError.CODE_INVALID, "every weight in the table is zero or negative"
+		return GSResult.fail(
+			GSError.CODE_INVALID, "every weight in the table is zero or negative"
 		)
-	return DotResult.success(null)
+	return GSResult.success(null)
 
 
 ## Draws one id. Returns [code]&""[/code] only when the table is unusable.
-func draw(stream: DotRandomStream) -> StringName:
+func draw(stream: GSRandomStream) -> StringName:
 	if ids.is_empty() or stream == null:
 		return &""
 	match policy:
@@ -121,7 +121,7 @@ func draw(stream: DotRandomStream) -> StringName:
 
 
 ## Draws [param count] ids, applying the policy between them.
-func draw_many(stream: DotRandomStream, count: int) -> Array[StringName]:
+func draw_many(stream: GSRandomStream, count: int) -> Array[StringName]:
 	var out: Array[StringName] = []
 	for _i in range(maxi(0, count)):
 		var id := draw(stream)
@@ -133,7 +133,7 @@ func draw_many(stream: DotRandomStream, count: int) -> Array[StringName]:
 
 ## Draws from the entries carrying [param tag] only.
 ## Filtering here, not a second table, keeps one pity counter per entry.
-func draw_tagged(stream: DotRandomStream, tag: StringName) -> StringName:
+func draw_tagged(stream: GSRandomStream, tag: StringName) -> StringName:
 	var w := _effective_weights()
 	for i in range(ids.size()):
 		if tags[i] != tag:
@@ -158,7 +158,7 @@ func _effective_weights() -> PackedFloat32Array:
 	return out
 
 
-func _draw_pity(stream: DotRandomStream) -> StringName:
+func _draw_pity(stream: GSRandomStream) -> StringName:
 	_ensure_pity()
 	var i := stream.next_weighted(_effective_weights())
 	if i < 0:
@@ -190,7 +190,7 @@ func _ensure_pity() -> void:
 
 ## A deck, dealt in order and reshuffled when it runs out.
 ## Weights become card counts, rounded with a floor of one, so fractional weights are never silently dropped to an empty deck.
-func _draw_deck(stream: DotRandomStream) -> StringName:
+func _draw_deck(stream: GSRandomStream) -> StringName:
 	if _deck_pos >= _deck.size():
 		_build_deck(stream)
 	if _deck.is_empty():
@@ -200,7 +200,7 @@ func _draw_deck(stream: DotRandomStream) -> StringName:
 	return id
 
 
-func _build_deck(stream: DotRandomStream) -> void:
+func _build_deck(stream: GSRandomStream) -> void:
 	var cards: Array = []
 	var scale := 1.0
 	var smallest := INF
@@ -243,8 +243,8 @@ func misses_of(id: StringName) -> int:
 ## The rate [param id] actually comes out at, and the longest drought seen, over [param samples] draws.
 ## A pity table's base weight is not its rate; this is the only honest way to know. Runs on a copy, so live counters are untouched.
 ## Returns [code]{"rate": float, "longest_drought": int, "hits": int}[/code].
-func measure_rate(stream: DotRandomStream, id: StringName, samples: int = 20000) -> Dictionary:
-	var probe := DotRandomTable.from_dictionary(to_dictionary())
+func measure_rate(stream: GSRandomStream, id: StringName, samples: int = 20000) -> Dictionary:
+	var probe := GSRandomTable.from_dictionary(to_dictionary())
 	var work := stream.duplicate_stream()
 	var hits := 0
 	var longest := 0
@@ -313,8 +313,8 @@ func to_dictionary() -> Dictionary:
 	}
 
 
-static func from_dictionary(d: Dictionary) -> DotRandomTable:
-	var t := DotRandomTable.new()
+static func from_dictionary(d: Dictionary) -> GSRandomTable:
+	var t := GSRandomTable.new()
 	var raw_ids: Array = d.get("ids", [])
 	var raw_tags: Array = d.get("tags", [])
 	var raw_weights: Array = d.get("weights", [])
