@@ -149,14 +149,15 @@ func bind_cloud(client: Object) -> void:
 	if client == null or client == _cloud:
 		return
 	_cloud = client
-	if client.has_signal(&"job_progress_changed"):
-		client.connect(&"job_progress_changed", _on_job)
-	if client.has_signal(&"progress_changed"):
-		client.connect(&"progress_changed", _on_progress)
-	if client.has_signal(&"phase_changed"):
-		client.connect(&"phase_changed", _on_phase)
-	if client.has_signal(&"failed"):
-		client.connect(&"failed", _on_failed)
+	_link(client, &"job_progress_changed", _on_job)
+	_link(client, &"progress_changed", _on_progress)
+	_link(client, &"phase_changed", _on_phase)
+	_link(client, &"failed", _on_failed)
+
+
+func _link(client: Object, signal_name: StringName, handler: Callable) -> void:
+	if client.has_signal(signal_name) and not client.is_connected(signal_name, handler):
+		client.connect(signal_name, handler)
 
 
 ## Binds the client registered under [param service] as soon as there is one (a shell may build it after the game).
@@ -262,10 +263,10 @@ func _follow_gate() -> void:
 	if bool(_gate.call(&"is_open")) or (_gate.has_method(&"is_hosted") and bool(_gate.call(&"is_hosted"))):
 		end(GATE_SOURCE)
 	else:
-		var f := float(_gate.call(&"progress"))
+		var f: float = _gate.call(&"progress")
 		var cur: Dictionary = _sources.get(GATE_SOURCE, {})
-		var text := str(_gate.call(&"status_text"))
-		if not _sources.has(GATE_SOURCE) or f != float(cur["fraction"]) or text != str(cur["text"]):
+		var text: String = _gate.call(&"status_text")
+		if not _sources.has(GATE_SOURCE) or f != float(cur["fraction"]) or text != cur["text"]:
 			begin(GATE_SOURCE, text, f)
 
 
@@ -276,10 +277,12 @@ func _top() -> Dictionary:
 	var fraction := -1.0
 	for r: StringName in _order:
 		var s: Dictionary = _sources[r]
-		if str(s["text"]) != "":
-			text = str(s["text"])
-		if str(s["detail"]) != "":
-			detail = str(s["detail"])
+		var s_text: String = s["text"]
+		var s_detail: String = s["detail"]
+		if s_text != "":
+			text = s_text
+		if s_detail != "":
+			detail = s_detail
 		if float(s["fraction"]) >= 0.0:
 			fraction = float(s["fraction"])
 	if text == "" and _tail:
@@ -301,8 +304,10 @@ func _refresh() -> void:
 	if _panel == null:
 		return
 	var top := _top()
-	_status.text = str(top["text"])
-	_detail.text = str(top["detail"])
+	var top_text: String = top["text"]
+	var top_detail: String = top["detail"]
+	_status.text = top_text
+	_detail.text = top_detail
 	_detail.visible = _detail.text != ""
 	var fraction := float(top["fraction"])
 	_bar.visible = is_busy() or _tail
