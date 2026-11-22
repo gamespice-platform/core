@@ -294,7 +294,7 @@ func _test_plain_http_screened() -> void:
 	_check(cut == "" and int(server.screen.describe()["timed_out"]) == 1, "a truncated request is closed at the screen's timeout, not the engine's")
 
 	# A handshake in odd case with a list-valued Connection, written in two pieces.
-	var good := "GET /game HTTP/1.1\r\nHost: x\r\nUpgrade: WebSocket\r\nConnection: keep-alive, Upgrade\r\n" + _KEY + "Sec-WebSocket-Protocol: dot.v1\r\nSec-WebSocket-Version: 13\r\n\r\n"
+	var good := "GET /game HTTP/1.1\r\nHost: x\r\nUpgrade: WebSocket\r\nConnection: keep-alive, Upgrade\r\n" + _KEY + "Sec-WebSocket-Protocol: gs.v1\r\nSec-WebSocket-Version: 13\r\n\r\n"
 	var whole := good.to_utf8_buffer()
 	reply = await _raw_request(server, port, whole.slice(0, 40), 3000, whole.slice(40))
 	_check(reply.begins_with("HTTP/1.1 101"), "a mixed-case handshake split across two writes is relayed and accepted (%s)" % reply.left(20).c_escape())

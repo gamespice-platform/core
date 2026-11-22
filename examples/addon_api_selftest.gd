@@ -68,7 +68,7 @@ func _test_what_this_build_has() -> void:
 
 	api.overrides["gs_core"] = 7
 	_check(api.level_of("gs_core") == 7, "an override stands in for the build")
-	_check(api.oldest_of("gs_core") == 1, "and keeps the build's oldest when it names none")
+	_check(api.oldest_of("gs_core") == mini(GSAddonApi.build_oldest("gs_core"), 7), "and keeps the build's oldest when it names none")
 	api.overrides["gs_core"] = {"level": 7, "oldest": 5}
 	_check(api.oldest_of("gs_core") == 5, "or takes the one it names")
 
@@ -103,10 +103,10 @@ func _test_a_requirement_this_build_meets() -> void:
 	_section("a requirement this build meets")
 
 	var api := GSAddonApi.new()
-	_check(api.check({"gs_core": 1}, "server").ok, "needing what this build has is fine")
+	_check(api.check({"gs_core": _core_level()}, "server").ok, "needing what this build has is fine")
 	_check(api.check({}, "server").ok, "needing nothing is fine")
 
-	api.overrides["gs_core"] = 4
+	api.overrides["gs_core"] = {"level": 4, "oldest": 1}
 	_check(api.check({"gs_core": 3}, "server").ok, "and so is needing less than this build has")
 
 	_done()
