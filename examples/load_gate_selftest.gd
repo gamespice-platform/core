@@ -3,7 +3,7 @@ extends Node
 ## Exercises [GSLoadGate] and [GSLoadingCover]: holds, predicates, the timeout warning, freezing and settling under the cover, closing again, the camera requirement and warm-up, a host claiming the cover, the older shells' root signal.
 
 const SECTIONS := 16
-const CHECKS := 140
+const CHECKS := 141
 
 var _passed := 0
 var _failed := 0
