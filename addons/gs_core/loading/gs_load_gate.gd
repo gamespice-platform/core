@@ -59,6 +59,7 @@ func _ready() -> void:
 		_mute_audio()
 	if _state == State.CLOSED and _host == null:
 		_show_own_cover()
+	_make_indicator()
 	GSLog.debug(CHANNEL, "closed until the game is ready", {"hosted": _host != null})
 
 
@@ -120,6 +121,35 @@ func hold(reason: StringName, text: String = "") -> void:
 	GSLog.debug(CHANNEL, "held", {"reason": String(reason), "text": text})
 	_close()
 	_emit_progress()
+
+
+## Like [method hold], then waits one frame so the cover has been drawn before the caller starts heavy
+## synchronous work. Use [code]await gate.hold_shown(&"map", "Loading map")[/code] ahead of an unload or install.
+func hold_shown(reason: StringName, text: String = "") -> void:
+	hold(reason, text)
+	if is_inside_tree():
+		await get_tree().process_frame
+
+
+## Shows the bottom-right indicator for a content client registered as [param service] (the cloud client
+## by default name [code]gs_cloud_client[/code]): downloads, mounts and quota errors, even when a shell skips the cover.
+func watch_content(service: StringName = &"gs_cloud_client") -> void:
+	content_service = service
+	_make_indicator()
+	if indicator != null:
+		indicator.watch_service(service)
+
+
+func _make_indicator() -> void:
+	if indicator != null or not busy_indicator or not is_inside_tree():
+		return
+	indicator = GSBusyIndicator.current()
+	if indicator == null:
+		indicator = GSBusyIndicator.new()
+		add_child(indicator)
+	indicator.bind_gate(self)
+	if content_service != &"":
+		indicator.watch_service(content_service)
 
 
 ## Lets go of [param reason]. Unknown reasons are ignored.

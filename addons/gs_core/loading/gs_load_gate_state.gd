@@ -106,6 +106,16 @@ signal progress_changed(fraction: float, text: String)
 ## A scene to instance as the cover instead of [GSLoadingCover]. See [method _make_cover].
 @export var cover_scene: PackedScene = null
 
+## Adds a [GSBusyIndicator] (bottom-right progress bar and "may stutter" warning) bound to this gate,
+## unless one is already registered. It also follows a registered content client; see [method GSLoadGate.watch_content].
+@export var busy_indicator: bool = true
+
+## Registry name of a content client (gs-cloud's is [code]gs_cloud_client[/code]) the indicator follows from the start. Empty follows none; see [method GSLoadGate.watch_content].
+@export var content_service: StringName = &""
+
+## The indicator this gate made or found, or null.
+var indicator: GSBusyIndicator = null
+
 ## The cover, assignable before it is first needed. Anything with [code]show_cover()[/code],
 ## [code]hide_cover()[/code], [code]set_status(text)[/code] and
 ## [code]set_progress(fraction)[/code]; [GSLoadingCover] is the stock one.
