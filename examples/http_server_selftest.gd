@@ -186,8 +186,8 @@ func _test_limits() -> void:
 func _test_traversal() -> void:
 	_check(_body(_fetch("/static/")) == "<h1>hi</h1>", "index served")
 	_check(_body(_fetch("/static/sub/a.txt")) == "alpha", "nested file served")
-	_check(_status(_fetch("/static/../outside.txt")) == 403, "gs-dot is 403")
-	_check(_status(_fetch("/static/%2e%2e/outside.txt")) == 403, "encoded gs-dot is 403")
+	_check(_status(_fetch("/static/../outside.txt")) == 403, "dot-dot is 403")
+	_check(_status(_fetch("/static/%2e%2e/outside.txt")) == 403, "encoded dot-dot is 403")
 	_check(_status(_fetch("/static/sub/..%2f..%2foutside.txt")) == 403, "encoded slash traversal is 403")
 	_check(_status(_fetch("/static/..%5coutside.txt")) == 403, "backslash traversal is 403")
 	_check(_status(_fetch("/static/.secret")) == 404, "dotfile is hidden")
