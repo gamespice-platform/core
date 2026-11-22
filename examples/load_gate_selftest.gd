@@ -2,8 +2,8 @@ extends Node
 
 ## Exercises [DotLoadGate] and [DotLoadingCover]: holds, predicates, the timeout warning, freezing and settling under the cover, closing again, the camera requirement and warm-up, a host claiming the cover, the older shells' root signal.
 
-const SECTIONS := 15
-const CHECKS := 132
+const SECTIONS := 16
+const CHECKS := 140
 
 var _passed := 0
 var _failed := 0
