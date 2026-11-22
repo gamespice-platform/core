@@ -149,7 +149,7 @@ func _test_predicates() -> void:
 
 
 func _test_timeout() -> void:
-	_section("the timeout opens it with a warning")
+	_section("the timeout opens it with an error naming the step")
 	var gate := _make()
 	gate.timeout_sec = 0.3
 	gate.hold(&"map", "Loading the map")
@@ -160,8 +160,9 @@ func _test_timeout() -> void:
 		await get_tree().process_frame
 	_check(gate.is_open(), "open after the timeout")
 	var warned: Array = _records.filter(func(r: Dictionary) -> bool:
-		return int(r["level"]) == GSLog.Level.WARN and r["channel"] == GSLoadGate.CHANNEL)
-	_check(warned.size() == 1, "exactly one warning", str(warned.size()))
+		return int(r["level"]) == GSLog.Level.ERROR and r["channel"] == GSLoadGate.CHANNEL)
+	_check(warned.size() == 1, "exactly one error", str(warned.size()))
+	_check(warned.size() == 1 and str((warned[0]["fields"] as Dictionary).get("step", "")) == "Loading the map", "it names the step the cover said", str(warned))
 	var held: Array = (warned[0]["fields"] as Dictionary).get("still_held", []) if warned.size() > 0 else []
 	_check(held.has("map") and held.has("never"), "naming every reason still held", str(held))
 	_check(gate.reasons().is_empty(), "and nothing is held afterwards")
