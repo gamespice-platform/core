@@ -10,7 +10,7 @@ The tag's semver is honest only in a release: gs-ci stamps it into `plugin.cfg`,
 
 - `addons/<addon>/<addon>_api.gd` holds `const LEVEL` and `const OLDEST`, with **no `class_name`**, so sixty addons do not add sixty globals. GameSpice Core's is `gs_core_api.gd`.
 - **Bump `LEVEL` when you add anything a game could call**, and write what the level added in the file's comment.
-- **Raise `OLDEST` to the new `LEVEL` when you remove or change something a game could have called**: every pack built before that no longer compiles.
+- **Raise `OLDEST` to the new `LEVEL` when you remove or change something a game could have called**: every pack built before that may no longer compile. `OLDEST` is advisory for a host: `GSAddonApi.check` no longer refuses a pack whose level is below it, it logs a warning on the `addon_api` channel and the pack is tried (a derived level is a guess, and a pack that parses and boots should be played). What still refuses: an addon the host does not have, and a pack newer than the host, except that `check(..., lenient_newer = true)` (gs-cloud passes it for a solo session) warns for that too and lets the load or parse failure be the error. Servers and listen hosts keep the refusal.
 - An addon with no api file is at level 1, the level everything was at when the scheme began.
 
 ## `requires.json`
@@ -78,3 +78,4 @@ A pack says what it needs at its root: `{"format": 1, "addons": {"gs_net": 3}}`.
 - 43: OLDEST 43. The Dot to GS rename without aliases: every class, channel and environment variable has one name; GSLog.display_channel, GSConfig.gs_env_name and deprecated_env_warned are removed, so a pack built before 43 must be rebuilt.
 - 44: GSBusyIndicator (bottom-right progress bar, status, "the game may stutter" warning, quota error with a clear-downloads button; stays up until frames are steady), GSLoadGate.hold_shown (hold, then wait a frame so the cover is drawn before heavy work) / watch_content / busy_indicator / indicator.
 - 45: GSWeb.heap_bytes (the WebAssembly heap size through a named function in gs_web.js, 0 off-web).
+- 46: GSAddonApi.check/check_text/check_mounted take `lenient_newer`; a pack below OLDEST is a logged warning, not a refusal.

@@ -6,8 +6,11 @@ extends RefCounted
 ## A pack compiles against the HOST's addons, so a newer-than-host pack fails to parse mid-load; this asks first and says "needs GameSpice Net API level 3; this server has 2".
 ## Levels live in each addon's [code]<addon>_api.gd[/code] (LEVEL bumped on add, OLDEST raised on remove); a checkout's plugin.cfg version is no honest number.
 
-# No log channel: every answer here is a GSResult its caller logs with the context this
-# class does not have -- which content, which peer, which side.
+# Refusals are a GSResult its caller logs with the context this class does not have (which
+# content, which peer, which side). Only what no longer refuses -- a pack older than OLDEST,
+# and with lenient_newer a pack newer than the host -- is logged here, as a warning on this
+# channel, because it succeeds and nobody else would say it.
+const CHANNEL := "addon_api"
 
 ## The file a pack carries at its root to say what it needs.
 const REQUIREMENTS_FILE := "requires.json"
@@ -206,7 +209,13 @@ static func encode(requirements: Dictionary) -> String:
 
 ## Whether this build can run something that needs [param requirements].
 ## [param who] is the noun a player reads. Every unmet requirement is in the detail; the message is the first.
-func check(requirements: Dictionary, who: String = "build") -> GSResult:
+##
+## Only what cannot work refuses: an addon that is not installed, and a pack newer than the host. A pack older than
+## [method oldest_of] is a warning (logged, still success): the level a publisher derived is a guess at what the pack
+## calls, and a pack that parses and boots is better played than refused. With [param lenient_newer] (a solo player
+## who can only lose their own game) a pack newer than the host is a warning too, and the caller mounts and finds
+## out; a server or a listen host keeps the refusal, since it would take other players down with it.
+func check(requirements: Dictionary, who: String = "build", lenient_newer: bool = false) -> GSResult:
 	var problems: Array[GSError] = []
 
 	var names: Array = requirements.keys()
@@ -227,23 +236,25 @@ func check(requirements: Dictionary, who: String = "build") -> GSResult:
 			continue
 
 		if need > have:
-			problems.append(GSError.make(
+			var newer := GSError.make(
 				GSError.CODE_VERSION,
 				"This game needs %s API level %d or newer; this %s has level %d."
 					% [display_name(addon), need, who, have],
 				"%s>=%d: have %d%s" % [addon, need, have, _version_note(addon)]
-			))
+			)
+			if lenient_newer:
+				GSLog.warn(CHANNEL, "pack needs a newer addon than this build; trying anyway", {
+					"addon": addon, "need": need, "have": have, "why": newer.message,
+				})
+			else:
+				problems.append(newer)
 			continue
 
 		var oldest := oldest_of(addon)
 		if need < oldest:
-			problems.append(GSError.make(
-				GSError.CODE_VERSION,
-				"This game was built for %s API level %d, which this %s no longer supports (it supports %d to %d)."
-					% [display_name(addon), need, who, oldest, have],
-				"%s>=%d: have %d, oldest supported %d%s"
-					% [addon, need, have, oldest, _version_note(addon)]
-			))
+			GSLog.warn(CHANNEL, "pack was built for an addon level older than this build supports; trying anyway", {
+				"addon": addon, "need": need, "have": have, "oldest": oldest,
+			})
 
 	if problems.is_empty():
 		return GSResult.success(requirements)
@@ -259,20 +270,20 @@ func check(requirements: Dictionary, who: String = "build") -> GSResult:
 
 
 ## [method parse] and then [method check], for a caller holding the file's text.
-func check_text(text: String, who: String = "build") -> GSResult:
+func check_text(text: String, who: String = "build", lenient_newer: bool = false) -> GSResult:
 	var parsed := parse(text)
 	if not parsed.ok:
 		return parsed
-	return check(parsed.value as Dictionary, who)
+	return check(parsed.value as Dictionary, who, lenient_newer)
 
 
 ## [method check] against a pack already mounted at [param prefix], when it carries a
 ## requirements file. A pack without one needs nothing that can be checked.
-func check_mounted(prefix: String, who: String = "build") -> GSResult:
+func check_mounted(prefix: String, who: String = "build", lenient_newer: bool = false) -> GSResult:
 	var path := prefix.trim_suffix("/") + "/" + REQUIREMENTS_FILE
 	if not FileAccess.file_exists(path):
 		return GSResult.success({})
-	return check_text(FileAccess.get_file_as_string(path), who)
+	return check_text(FileAccess.get_file_as_string(path), who, lenient_newer)
 
 
 static func _version_note(addon: String) -> String:

@@ -4,7 +4,7 @@ extends Node
 ## The sentences are asserted, not only the codes: a check for CODE_VERSION alone passes for a refusal nobody can read.
 
 const SECTIONS := 8
-const CHECKS := 78
+const CHECKS := 84
 
 const SCRATCH := "user://addon_api_selftest"
 
@@ -133,10 +133,17 @@ func _test_the_refusals_read_as_sentences() -> void:
 
 	api.overrides["gs_core"] = {"level": 6, "oldest": 4}
 	var older := api.check({"gs_core": 2}, "server")
-	_check(
-		not older.ok and older.error.message.contains("no longer supports (it supports 4 to 6)"),
-		"a pack built for a level this build dropped says which ones it takes", older.error.message if not older.ok else ""
-	)
+	_check(older.ok, "a pack built for a level below OLDEST is a warning, not a refusal")
+	_check(api.check({"gs_core": 2}, "server", true).ok, "and so it is for a lenient caller")
+	_check(api.check({"gs_core": 2, "gs_no_such_addon": 1}, "server").code() == GSError.CODE_VERSION,
+		"but an addon that is not installed still refuses beside it")
+
+	api.overrides["gs_core"] = 2
+	_check(not api.check({"gs_core": 3}, "server").ok, "a newer pack refuses by default")
+	_check(api.check({"gs_core": 3}, "client", true).ok, "and is attempted when the caller is lenient (solo)")
+	_check(api.check({"gs_core": 3, "gs_no_such_addon": 1}, "client", true).code() == GSError.CODE_VERSION,
+		"but a missing addon refuses even then")
+	_check(api.check_text(GSAddonApi.encode({"gs_core": 3}), "client", true).ok, "check_text passes lenient_newer on")
 
 	api.overrides["gs_core"] = 2
 	var both := api.check({"gs_no_such_addon": 1, "gs_core": 9}, "server")
