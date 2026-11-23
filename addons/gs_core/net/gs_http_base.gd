@@ -62,16 +62,16 @@ const DEFAULT_CHUNK_SIZE := 1048576
 const MAX_CHUNK_SIZE := 16777216
 
 ## Chunk size from [code]--gs-http-chunk=N[/code], env [code]GS_HTTP_CHUNK_SIZE[/code],
-## project setting [code]dot/http/download_chunk_size[/code], then 1 MiB; clamped to 16 MiB.
+## project setting [code]gs/http/download_chunk_size[/code], then 1 MiB; clamped to 16 MiB.
 static func default_chunk_size() -> int:
-	var v: Variant = _setting("gs-http-chunk", "GS_HTTP_CHUNK_SIZE", "dot/http/download_chunk_size", DEFAULT_CHUNK_SIZE)
+	var v: Variant = _setting("gs-http-chunk", "GS_HTTP_CHUNK_SIZE", "gs/http/download_chunk_size", DEFAULT_CHUNK_SIZE)
 	return clampi(int(v), 0, MAX_CHUNK_SIZE)
 
 
 ## Threaded reads, opt-in: [code]--gs-http-threads[/code] / [code]=1[/code], env
-## [code]GS_HTTP_THREADS[/code], or project setting [code]dot/http/use_threads[/code].
+## [code]GS_HTTP_THREADS[/code], or project setting [code]gs/http/use_threads[/code].
 static func default_use_threads() -> bool:
-	return str(_setting("gs-http-threads", "GS_HTTP_THREADS", "dot/http/use_threads", false)) in ["true", "1", "yes", "on", ""]
+	return str(_setting("gs-http-threads", "GS_HTTP_THREADS", "gs/http/use_threads", false)) in ["true", "1", "yes", "on", ""]
 
 
 static func _setting(arg: String, env: String, project: String, fallback: Variant) -> Variant:
