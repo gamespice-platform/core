@@ -1,16 +1,9 @@
 class_name GSNativeParity
 extends RefCounted
 
-## Holds a native (GDExtension) twin to its script original: the same inputs through both, answers compared to the bit.
-## Nothing here needs a native library. With the class absent (web, an unsupported platform, no library installed) a
-## comparison is [constant SKIPPED] and the caller keeps its script path, which is the behaviour the game ships there.
-## Set the environment variable [constant ENV_REQUIRED] to 1 on a machine that must have the library: a skip then fails.
-##
-## [codeblock]
-## var p := GSNativeParity.new("crc")
-## var r := p.compare(&"GSSimCrc", inputs, GSMapVpk.crc32_script, func(x): return GSSimCrc.new().crc32(x))
-## # r.status is PASS, FAIL or SKIPPED; r.first (the first differing case) is "" unless FAIL.
-## [/codeblock]
+## Holds a native (GDExtension) twin to its script original: the same inputs through both, answers compared to the bit. Nothing here needs a native library.
+## With the class absent (web, an unsupported platform) a comparison is [constant SKIPPED] and the caller keeps its script path; set [constant ENV_REQUIRED] to 1 on a machine that must have the library, and a skip fails.
+## Use [code]GSNativeParity.new("crc").compare(native_class, inputs, script_fn, native_fn)[/code]; the result's status is PASS, FAIL or SKIPPED.
 
 const PASS := &"pass"
 const FAIL := &"fail"
@@ -78,10 +71,8 @@ static func _same_deep(a: Variant, b: Variant) -> bool:
 	return true
 
 
-## Runs every element of [param inputs] through [param script_fn] and [param native_fn] (each takes one input and
-## returns the answer) and compares. To pass several arguments, make each input an Array and unpack it in the Callable.
-## Returns {status, cases, differing, first, native_present}. [param native_class] is the class the native path
-## needs; absent, nothing runs and the status is [constant SKIPPED] (or [constant FAIL] when [method required]).
+## Runs every element of [param inputs] through [param script_fn] and [param native_fn] (each takes one input) and compares; for several arguments make each input an Array and unpack it in the Callable.
+## Returns {status, cases, differing, first, native_present}. [param native_class] is the class the native path needs; absent, nothing runs and the status is [constant SKIPPED] (or [constant FAIL] when [method required]).
 func compare(native_class: StringName, inputs: Array, script_fn: Callable, native_fn: Callable) -> Dictionary:
 	var out := {"status": PASS, "cases": 0, "differing": 0, "first": "", "native_present": available(native_class)}
 	if not out["native_present"]:

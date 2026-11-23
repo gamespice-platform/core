@@ -6,10 +6,8 @@ extends RefCounted
 ## A pack compiles against the HOST's addons, so a newer-than-host pack fails to parse mid-load; this asks first and says "needs GameSpice Net API level 3; this server has 2".
 ## Levels live in each addon's [code]<addon>_api.gd[/code] (LEVEL bumped on add, OLDEST raised on remove); a checkout's plugin.cfg version is no honest number.
 
-# Refusals are a GSResult its caller logs with the context this class does not have (which
-# content, which peer, which side). Only what no longer refuses -- a pack older than OLDEST,
-# and with lenient_newer a pack newer than the host -- is logged here, as a warning on this
-# channel, because it succeeds and nobody else would say it.
+# Refusals are a GSResult its caller logs with the context this class lacks (which content, which peer, which side).
+# Only what no longer refuses -- a pack older than OLDEST, and with lenient_newer a pack newer than the host -- is logged here, as a warning on this channel.
 const CHANNEL := "addon_api"
 
 ## The file a pack carries at its root to say what it needs.
@@ -207,14 +205,9 @@ static func encode(requirements: Dictionary) -> String:
 	return JSON.stringify({"format": FORMAT, "addons": addons}, "  ", false) + "\n"
 
 
-## Whether this build can run something that needs [param requirements].
-## [param who] is the noun a player reads. Every unmet requirement is in the detail; the message is the first.
-##
-## Only what cannot work refuses: an addon that is not installed, and a pack newer than the host. A pack older than
-## [method oldest_of] is a warning (logged, still success): the level a publisher derived is a guess at what the pack
-## calls, and a pack that parses and boots is better played than refused. With [param lenient_newer] (a solo player
-## who can only lose their own game) a pack newer than the host is a warning too, and the caller mounts and finds
-## out; a server or a listen host keeps the refusal, since it would take other players down with it.
+## Whether this build can run something that needs [param requirements]. [param who] is the noun a player reads; every unmet requirement is in the detail, the message is the first.
+## Only what cannot work refuses: an addon not installed, and a pack newer than the host. A pack older than [method oldest_of] is a warning (logged, still success).
+## With [param lenient_newer] (a solo player who can only lose their own game) a newer pack is a warning too; a server or listen host keeps the refusal.
 func check(requirements: Dictionary, who: String = "build", lenient_newer: bool = false) -> GSResult:
 	var problems: Array[GSError] = []
 

@@ -19,32 +19,24 @@ signal finished(count: int)
 ## 0 draws everything at once.
 @export var batch_size: int = 1000
 
-## Milliseconds a round may cost its frame. Above 0, rounds start at [member first_batch] items, placing stops at
-## half the budget, and each next round is sized from the measured draw cost per item, up to [member batch_size].
-## A count alone cannot bound a frame: one first-draw compile costs far more than another, so an item is priced at
-## the dearer of the last round's mean and the dearest seen lately (halved by each round that kept to the budget),
-## and a round grows at most [member growth] times the last. One item dearer than the budget still takes its
-## frame: nothing splits a compile.
+## Milliseconds a round may cost its frame. Above 0, rounds start at [member first_batch] items, stop placing at half the budget, and are then sized from the measured draw cost per item, up to [member batch_size].
+## An item is priced at the dearer of the last round's mean and the dearest seen lately; a round grows at most [member growth] times the last. One item dearer than the budget still takes its frame.
 @export var budget_msec: float = 0.0
 
 ## Seconds without a drawn frame after which [signal finished] fires anyway: a headless run or a
 ## hidden window never draws, and a cover waiting on this must not wait for ever.
 @export var timeout_sec: float = 5.0
 
-## Items in the first budgeted round, before any cost has been measured (capped by [member batch_size]). One: an
-## unmeasured round of 16 first-draw compiles was a 4.2 s frame in the web shell (staging02, 2026-11-15); later
-## rounds grow from the measured cost, by at most [member growth].
+## Items in the first budgeted round, before any cost is measured (capped by [member batch_size]). One: an unmeasured round of 16 first-draw compiles was a 4.2 s frame in the web shell;
+## later rounds grow from the measured cost, by at most [member growth].
 @export var first_batch: int = FIRST_BATCH
 
 ## Most a budgeted round may grow over the last, as a factor. Cheap rounds (pipelines already compiled) make the
 ## per-item estimate tiny, and a round sized from that alone can land on a run of uncompiled ones. 0 = no limit.
 @export var growth: float = GROWTH
 
-## What each round that kept to the budget leaves of the dearest per-item cost seen, from 0 (forget it at once) to 1
-## (hold it for good: once one item outran the budget, every later round is one item, so no frame holds two
-## compiles). Below 1 trades frame bound for pace: in the web shell, decay 0.5 let a run of cheap rounds forget a
-## 1.4 s compile and grow to a 32-item, 2.7 s round (staging02, 2026-11-15). Under a loading screen pace matters
-## more; in play, hold it.
+## What each round that kept to the budget leaves of the dearest per-item cost seen, from 0 (forget it at once) to 1 (hold it for good: once one item outran the budget, every later round is one item).
+## Below 1 trades frame bound for pace: in the web shell, decay 0.5 let cheap rounds forget a 1.4 s compile and grow to a 2.7 s round. Under a loading screen pace matters more; in play, hold it.
 @export var dear_decay: float = DEAR_DECAY
 
 ## Skips an item whose pipeline [method item_key] says another queued item already compiles: a scene's hundreds of
@@ -52,9 +44,8 @@ signal finished(count: int)
 ## Anything [method item_key] cannot key (a particle process material) is always kept. Off draws every item.
 @export var dedupe: bool = true
 
-## Draws the items that cost most to compile first, by [method item_cost]. The rounds start at [member first_batch]
-## and double, so the dear compiles land in the small early rounds, where one dear item is a small round, and the
-## cheap bulk fills the large later ones. Equal estimates keep their queue order. Off (the default: software-GL A/B 2026-11-15 showed no gain beyond noise) draws in queue order.
+## Draws the items that cost most to compile first, by [method item_cost]. The rounds start at [member first_batch] and double, so dear compiles land in small early rounds and the cheap bulk fills the large later ones.
+## Equal estimates keep their queue order. Off (the default: a software-GL A/B showed no gain beyond noise) draws in queue order.
 @export var dear_first: bool = false
 
 ## Stays on whichever camera the viewport has: the warm-up is a top-level node that copies that camera's pose every
@@ -160,11 +151,8 @@ func add_items(items: Array) -> void:
 			_items.append(item)
 
 
-## What decides the pipeline [param item] compiles. A [BaseMaterial3D]: its class, every int and bool property and
-## which textures it has (a superset of the engine's own shader key). A [ShaderMaterial]: its shader (uniform values
-## compile nothing). A [Mesh]: each surface's primitive, vertex format and material key. "" for anything else
-## (a particle process material, a mesh with a material it cannot key): never merged. [param cache] holds material
-## keys by instance id across calls.
+## What decides the pipeline [param item] compiles. A [BaseMaterial3D]: its class, int and bool properties and which textures it has. A [ShaderMaterial]: its shader. A [Mesh]: each surface's primitive, vertex format and material key.
+## "" for anything else: never merged. [param cache] holds material keys by instance id across calls.
 static func item_key(item: Variant, cache: Dictionary = {}) -> String:
 	if item is BaseMaterial3D:
 		return _material_key(item as BaseMaterial3D, cache)

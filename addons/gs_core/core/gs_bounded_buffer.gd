@@ -1,11 +1,9 @@
 class_name GSBoundedBuffer
 extends RefCounted
 
-## A first-in first-out queue that cannot grow without limit, and says so when it sheds. Three addons each had their own: a log queue, a telemetry queue and a report outbox. A backed-up collector must cost history, never memory.
-##
-## [member capacity] bounds the item count and [member max_weight] an optional cost (bytes, say) that [member weigher] estimates per item; 0 means unlimited for both. When a push goes over, [constant Policy.DROP_OLDEST] discards from the front and [constant Policy.REFUSE] turns the new item away. Every loss is counted ([member dropped], [member refused], [member dropped_weight]).
-##
-## Dropping and taking move a head index instead of shifting the array, so a full buffer costs the same per push as an empty one; the array is compacted only when half of it is dead space.
+## A first-in first-out queue that cannot grow without limit, and says so when it sheds. A backed-up collector must cost history, never memory.
+## [member capacity] bounds the item count and [member max_weight] an optional cost [member weigher] estimates per item; 0 means unlimited. Over the bound, [constant Policy.DROP_OLDEST] discards from the front and [constant Policy.REFUSE] turns the new item away; every loss is counted.
+## Taking moves a head index instead of shifting the array; the array is compacted when half of it is dead space.
 
 enum Policy {
 	DROP_OLDEST,  ## Discard from the front; keeps the most recent.

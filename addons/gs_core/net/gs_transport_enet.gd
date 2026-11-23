@@ -34,11 +34,9 @@ const ENET_DEFAULT_THROTTLE_DECELERATION := 2
 ## See [member peer_timeout_limit]. Only matters when the limit is reached first.
 @export_range(1000, 120000, 500) var peer_timeout_min_ms: int = 10000
 
-## A reliable command unacknowledged for this long ends the connection, whatever else.
-## ENet doubles a command's resend timeout on every miss with no cap (first try about rtt + 4 x jitter), and an acknowledgement only restarts the clock from its latest send,
-## so a live link drops once ONE command misses about log2(max / first timeout) tries in a row: 8 at 30 s and 200 ms. At 20% loss each way a try fails 36% of the time,
-## 2.8e-4 per command; ENet pings twice a second, so minutes at 20% dropped a client about one run in ten (arena-lossy-linkdrop-1). Raising this adds one try per
-## doubling and stalls the reliable channel just as long, so it is not a fix; at 5% each way a try fails 9.75% of the time and eight in a row is about 8e-9.
+## A reliable command unacknowledged for this long ends the connection, whatever else. ENet doubles a command's resend timeout on every miss with no cap, so a live link drops once ONE command misses about log2(max / first timeout) tries in a row: 8 at 30 s and 200 ms.
+## At 20% loss each way a try fails 36% of the time, so minutes at 20% dropped a client about one run in ten (arena-lossy-linkdrop-1).
+## Raising this adds one try per doubling and stalls the reliable channel just as long, so it is not a fix.
 @export_range(1000, 120000, 500) var peer_timeout_max_ms: int = 30000
 
 @export_group("Packet throttle")
