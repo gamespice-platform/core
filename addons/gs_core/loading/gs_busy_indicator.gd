@@ -72,6 +72,9 @@ func _exit_tree() -> void:
 
 func _ready() -> void:
 	_build()
+	# A CanvasLayer starts visible; _apply only flips it on a change, so without this the
+	# empty panel sat bottom-right until something had been busy once and ended.
+	visible = false
 	_apply()
 
 

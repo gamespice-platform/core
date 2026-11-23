@@ -24,6 +24,7 @@ func _ready() -> void:
 	print("gs-core busy indicator self-test")
 	var ind := GSBusyIndicator.new()
 	add_child(ind)
+	_check("idle indicator draws nothing (no empty box bottom-right)", not ind.visible and not ind.is_showing())
 	ind.begin(&"a", "Working", 0.25)
 	_check("shows while busy", ind.is_showing())
 	Engine.set_meta(GSBusyIndicator.HOST_COVER_META, true)
