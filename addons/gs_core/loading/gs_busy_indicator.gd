@@ -223,12 +223,16 @@ func _on_failed(err: GSError) -> void:
 		fail(text)
 
 
+const ART_PROBLEM_TEXT := "Not enough browser storage for this map's art."
+
+
 ## Tells the player map art could not be stored: [param problem] is `{message, action, bytes, free}` (GSMapStore's art_problem). Offers
 ## "Clear downloaded content" on [param cloud] (bound when none is yet), so a slice that fell back to boxes is never silent, in play or under the cover.
 func show_art_problem(problem: Dictionary, cloud: Object = null) -> void:
 	if cloud != null:
 		bind_cloud(cloud)
-	fail(str(problem.get("message", "Not enough browser storage for this map's art.")), "Clear downloaded content", _clear_downloads)
+	var message: String = problem.get("message", ART_PROBLEM_TEXT)
+	fail(message, "Clear downloaded content", _clear_downloads)
 
 
 func _clear_downloads() -> void:
