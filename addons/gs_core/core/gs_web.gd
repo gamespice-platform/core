@@ -112,6 +112,14 @@ static func is_metered() -> bool:
 	return p.isMetered() == true
 
 
+## The WebAssembly heap size in bytes, or 0 off-web, without the page script, or when the page exposes no heap.
+static func heap_bytes() -> int:
+	var p: Variant = page()
+	if p == null:
+		return 0
+	return int(p.heapBytes())
+
+
 ## Parks [param text] at window.gsWeb.published[key], for a harness to read. A no-op without the page script.
 static func publish(key: String, text: String) -> void:
 	var p: Variant = page()

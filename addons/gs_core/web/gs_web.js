@@ -56,6 +56,16 @@
     return !!(c && (c.saveData === true || c.type === 'cellular'));
   };
 
+  /* The WebAssembly heap in bytes (0 when the page exposes none): the global HEAP8 of a plain emscripten build, else Module.HEAP8. */
+  w.heapBytes = function () {
+    try {
+      if (typeof HEAP8 !== 'undefined' && HEAP8 && HEAP8.length) { return HEAP8.length; }
+      var m = window.Module;
+      if (m && m.HEAP8 && m.HEAP8.length) { return m.HEAP8.length; }
+    } catch (err) { return 0; }
+    return 0;
+  };
+
   w.downloadText = function (text, filename) {
     var b = new Blob([text], { type: 'text/plain' });
     var a = document.createElement('a');

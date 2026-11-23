@@ -3,7 +3,7 @@ extends Node
 ## The browser half (a failed IndexedDB save counted, logged and retried) is seen with tools/idb_probe.sh (a real Chromium: user:// files kept after a tab closed right after a write burst).
 ## Run: godot --headless --path . res://examples/web_selftest.tscn
 
-const CHECKS := 17
+const CHECKS := 18
 
 var _passed := 0
 var _failed := 0
@@ -23,6 +23,7 @@ func _ready() -> void:
 	var none := await GSWeb.flush_filesystem(null)
 	_check(none.ok, "and without a tree")
 	_check(GSWeb.page() == null, "page() is null off-web")
+	_check(GSWeb.heap_bytes() == 0, "heap_bytes is 0 off-web")
 	_check(not GSWeb.lock_keyboard().ok, "lock_keyboard reports no page off-web")
 	_check(not GSWeb.post_to_parent({"type": "x"}).ok, "post_to_parent reports no page off-web")
 	_check(not GSWeb.download_text("a", "a.txt").ok, "download_text reports no page off-web")
