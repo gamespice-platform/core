@@ -15,6 +15,8 @@ const CONTENT_SOURCE := &"content"
 ## [enum GSCloudClient.Phase] values that mean work is going on: manifest through mounting.
 const CLOUD_PHASE_FIRST := 1
 const CLOUD_PHASE_LAST := 6
+## [Engine] meta a host sets to true while its own full-screen cover (the shell's loading screen) is up. The cover already shows the bar and the text, so the panel stays hidden under it instead of drawing a second box over it.
+const HOST_COVER_META := &"gs_host_cover_up"
 
 ## The user pressed the error's action button.
 signal action_pressed()
@@ -252,7 +254,9 @@ func _process(_delta: float) -> void:
 			_tail = false
 			_apply()
 	_last_msec = now
-	if _shown:
+	if _shown != _wanted():
+		_apply()
+	elif _shown:
 		_refresh()
 
 
@@ -290,8 +294,17 @@ func _top() -> Dictionary:
 	return {"text": text, "detail": detail, "fraction": fraction}
 
 
+## True while a host's own cover is up (see [constant HOST_COVER_META]).
+static func host_cover_up() -> bool:
+	return bool(Engine.get_meta(HOST_COVER_META, false))
+
+
+func _wanted() -> bool:
+	return (is_busy() or _tail or _error != "") and not host_cover_up()
+
+
 func _apply() -> void:
-	var show := is_busy() or _tail or _error != ""
+	var show := _wanted()
 	if show != _shown:
 		_shown = show
 		visible = show
