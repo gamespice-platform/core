@@ -79,3 +79,4 @@ A pack says what it needs at its root: `{"format": 1, "addons": {"gs_net": 3}}`.
 - 44: GSBusyIndicator (bottom-right progress bar, status, "the game may stutter" warning, quota error with a clear-downloads button; stays up until frames are steady), GSLoadGate.hold_shown (hold, then wait a frame so the cover is drawn before heavy work) / watch_content / busy_indicator / indicator.
 - 45: GSWeb.heap_bytes (the WebAssembly heap size through a named function in gs_web.js, 0 off-web).
 - 46: GSAddonApi.check/check_text/check_mounted take `lenient_newer`; a pack below OLDEST is a logged warning, not a refusal.
+- 47: GSBusyIndicator.show_art_problem (the player-visible "map art does not fit the browser storage" message with a Clear downloaded content button); a bound gate's meta `art_problem` shows it too.

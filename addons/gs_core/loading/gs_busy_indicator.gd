@@ -223,6 +223,14 @@ func _on_failed(err: GSError) -> void:
 		fail(text)
 
 
+## Tells the player map art could not be stored: [param problem] is `{message, action, bytes, free}` (GSMapStore's art_problem). Offers
+## "Clear downloaded content" on [param cloud] (bound when none is yet), so a slice that fell back to boxes is never silent, in play or under the cover.
+func show_art_problem(problem: Dictionary, cloud: Object = null) -> void:
+	if cloud != null:
+		bind_cloud(cloud)
+	fail(str(problem.get("message", "Not enough browser storage for this map's art.")), "Clear downloaded content", _clear_downloads)
+
+
 func _clear_downloads() -> void:
 	var store: Variant = _cloud.get(&"store") if _cloud != null and &"store" in _cloud else null
 	if store is Object and (store as Object).has_method(&"clear_unpinned"):
@@ -264,6 +272,9 @@ func _follow_gate() -> void:
 	if _gate == null or not is_instance_valid(_gate) or not _gate.has_method(&"is_open"):
 		return
 	# A host's own cover already shows the gate's line and bar.
+	if _gate.has_meta(&"art_problem"):
+		show_art_problem(_gate.get_meta(&"art_problem"))
+		_gate.remove_meta(&"art_problem")
 	if bool(_gate.call(&"is_open")) or (_gate.has_method(&"is_hosted") and bool(_gate.call(&"is_hosted"))):
 		end(GATE_SOURCE)
 	else:
