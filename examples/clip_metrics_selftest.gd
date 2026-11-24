@@ -4,7 +4,7 @@ extends Node
 ## godot --headless --path . res://examples/clip_metrics_selftest.tscn
 
 const SECTIONS := 1
-const CHECKS := 4
+const CHECKS := 6
 
 var _failed := 0
 var _checks := 0
@@ -62,6 +62,22 @@ func _ready() -> void:
 	# The scaled ankle stands at -0.42 (0.9 - 1.5 * 0.88), the unscaled one at 0.02: the foot reads 0 only against the scaled sole.
 	_check(absf((tall["feet"][0] as Vector3).y) < 0.001, "sole follows the pose's bone scales (foot y %.3f)" % (tall["feet"][0] as Vector3).y)
 	big.queue_free()
+	# Height limits are for a 1x body: a foot 0.16 m up in the world is planted on a skeleton stretched 2x tall, hovering on a 1x one.
+	for tall_body in [true, false]:
+		var lifted := _build(false)
+		lifted.scale = Vector3(1.0, 2.0 if tall_body else 1.0, 1.0)
+		add_child(lifted)
+		var gauge := GSClipMetrics.new()
+		gauge.pose_sample(0.0, lifted, Vector3.ZERO, true)
+		lifted.set_bone_pose_position(1, Vector3(0, 0.98 if tall_body else 1.06, 0))
+		for n in 4:
+			gauge.add(gauge.pose_sample(0.1 * n, lifted, Vector3.ZERO, true))
+		var row: Dictionary = {}
+		for r in gauge.evaluate({"float_m": 0.12}):
+			if r["check"] == "floor_contact":
+				row = r
+		_check(bool(row["pass"]) == tall_body, "%s body, foot 0.16 m up: floor_contact %s (hover %.2f)" % ["2x" if tall_body else "1x", "passes" if row["pass"] else "fails", float(row["value"])])
+		lifted.queue_free()
 	_sections += 1
 	print("clip_metrics_selftest: %d sections, %d checks, %d failed" % [_sections, _checks, _failed])
 	if _sections != SECTIONS or _checks != CHECKS:

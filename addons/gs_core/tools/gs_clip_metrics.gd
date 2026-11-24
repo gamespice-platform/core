@@ -96,6 +96,8 @@ func pose_sample(t: float, skeleton: Skeleton3D, root: Vector3, grounded: bool) 
 	var sample := {"t": t, "root": root, "ground_y": root.y, "grounded": grounded}
 	if skeleton == null:
 		return sample
+	# A 3 m brute lifts a foot higher than a 1.8 m survivor for the same stride: height limits are for 1x.
+	sample["scale"] = maxf(skeleton.global_transform.basis.get_scale().y, 0.01)
 	if _feet_bones.is_empty():
 		for i in skeleton.get_bone_count():
 			var bone := skeleton.get_bone_name(i).to_lower()
@@ -187,7 +189,7 @@ func _slide(lim: Dictionary) -> Dictionary:
 		for i in feet.size():
 			var foot: Vector3 = feet[i]
 			var rising := absf(foot.y - (before[i] as Vector3).y) / step if step > 0.0 else INF
-			if foot.y - float(frame["ground_y"]) > float(lim["plant_height_m"]) or rising > float(lim["settle_mps"]):
+			if foot.y - float(frame["ground_y"]) > float(lim["plant_height_m"]) * float(frame.get("scale", 1.0)) or rising > float(lim["settle_mps"]):
 				start.erase(i)
 				continue
 			if not start.has(i):
@@ -221,7 +223,8 @@ func _floor(lim: Dictionary) -> Dictionary:
 		var lowest := INF
 		for foot: Vector3 in feet:
 			lowest = minf(lowest, foot.y)
-		var gap := lowest - float(frame["ground_y"])
+		var size := float(frame.get("scale", 1.0))
+		var gap := (lowest - float(frame["ground_y"])) / size
 		low = minf(low, gap)
 		high = maxf(high, gap)
 		counted += 1
@@ -232,7 +235,7 @@ func _floor(lim: Dictionary) -> Dictionary:
 	var share := float(airborne) / float(counted)
 	var ok := low >= -float(lim["sink_m"]) and share <= float(lim["hover_share"])
 	return _row("floor_contact", ok, share, float(lim["hover_share"]),
-		"share of grounded frames with both feet >%.2f m up; lowest foot %.3f..%.3f m" % [float(lim["float_m"]), low, high])
+		"share of grounded frames with both feet >%.2f m (at 1x body size) up; lowest foot %.3f..%.3f m" % [float(lim["float_m"]), low, high])
 
 
 func _framing(lim: Dictionary) -> Dictionary:
