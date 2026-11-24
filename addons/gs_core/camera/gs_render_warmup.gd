@@ -211,7 +211,14 @@ static func _key_props_of(mat: BaseMaterial3D, cls: String) -> Array:
 			TYPE_OBJECT:
 				if prop["name"] != "next_pass":
 					objs.append(prop["name"])
-	_key_props[cls] = [Array(plain), Array(objs)]
+	# StringName, not String: Object.get converts a String to a StringName on every call (a third of the cost of a key).
+	var plain_names: Array[StringName] = []
+	var obj_names: Array[StringName] = []
+	for n in plain:
+		plain_names.append(StringName(n))
+	for n in objs:
+		obj_names.append(StringName(n))
+	_key_props[cls] = [plain_names, obj_names]
 	return _key_props[cls]
 
 
@@ -221,15 +228,15 @@ static func _material_key(mat: BaseMaterial3D, cache: Dictionary) -> String:
 		return cache[id]
 	var cls := mat.get_class()
 	var names: Array = _key_props_of(mat, cls)
-	var plain: Array = names[0]
-	var objs: Array = names[1]
+	var plain: Array[StringName] = names[0]
+	var objs: Array[StringName] = names[1]
 	var values := PackedInt32Array()
 	values.resize(plain.size() + objs.size())
 	var i := 0
-	for name: String in plain:
+	for name: StringName in plain:
 		values[i] = int(mat.get(name))
 		i += 1
-	for name: String in objs:
+	for name: StringName in objs:
 		values[i] = 0 if mat.get(name) == null else 1
 		i += 1
 	var key := "mat:" + cls + ";" + values.to_byte_array().hex_encode()
@@ -276,6 +283,11 @@ static func item_cost(item: Variant) -> float:
 
 func item_count() -> int:
 	return _items.size()
+
+
+## The queued items, in queue order (a copy).
+func queued_items() -> Array:
+	return _items.duplicate()
 
 
 ## Items [method add_items] dropped because another queued item compiles the same pipeline.

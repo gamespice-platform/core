@@ -29,6 +29,7 @@ func _ready() -> void:
 	var t0 := Time.get_ticks_usec()
 	warm.add_items(mats)
 	var us := Time.get_ticks_usec() - t0
+	bad += _coverage(mats, warm.queued_items())
 	print("BENCH n=%d queued=%d skipped=%d total_ms=%.1f us_per_material=%.2f" % [n, warm.item_count(), warm.skipped_count(), us / 1000.0, float(us) / n])
 	warm.free()
 	print("BENCH parity mismatches=%d" % bad)
@@ -51,6 +52,24 @@ func _reference(mat: BaseMaterial3D) -> String:
 				else:
 					parts.append("%s=%d" % [prop["name"], 0 if value == null else 1])
 	return "|".join(parts)
+
+
+## Warm-up coverage: the queue must be exactly the first material of each reference group, in offer order (so every
+## distinct pipeline is drawn and none is dropped or added). Returns the number of differences.
+func _coverage(mats: Array, queued: Array) -> int:
+	var seen := {}
+	var expect: Array = []
+	for m: BaseMaterial3D in mats:
+		var ref := _reference(m)
+		if not seen.has(ref):
+			seen[ref] = true
+			expect.append(m)
+	var bad := 0 if expect.size() == queued.size() else 1
+	for i in mini(expect.size(), queued.size()):
+		if expect[i] != queued[i]:
+			bad += 1
+	print("BENCH coverage expected=%d queued=%d differences=%d" % [expect.size(), queued.size(), bad])
+	return bad
 
 
 ## Counts material pairs the key and the reference group differently, through a map from each to the other.
