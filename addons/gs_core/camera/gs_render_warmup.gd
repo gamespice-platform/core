@@ -192,21 +192,41 @@ static func _surface_layout(mesh: Mesh, surface: int) -> String:
 	return "arrays" + filled
 
 
+## Per material class, the name of every stored property that decides a pipeline (next_pass aside):
+## the property list is read once per class, not once per material (47k materials on a big map took 23 s).
+static var _key_props := {}
+
+
+static func _key_props_of(mat: BaseMaterial3D, cls: String) -> PackedStringArray:
+	if _key_props.has(cls):
+		return _key_props[cls]
+	var out := PackedStringArray()
+	for prop: Dictionary in mat.get_property_list():
+		if not int(prop["usage"]) & PROPERTY_USAGE_STORAGE:
+			continue
+		match int(prop["type"]):
+			TYPE_BOOL, TYPE_INT:
+				out.append(prop["name"])
+			TYPE_OBJECT:
+				if prop["name"] != "next_pass":
+					out.append(prop["name"])
+	_key_props[cls] = out
+	return out
+
+
 static func _material_key(mat: BaseMaterial3D, cache: Dictionary) -> String:
 	var id := mat.get_instance_id()
 	if cache.has(id):
 		return cache[id]
-	var parts := PackedStringArray([mat.get_class()])
-	for prop: Dictionary in mat.get_property_list():
-		if not int(prop["usage"]) & PROPERTY_USAGE_STORAGE:
-			continue
-		var name: String = prop["name"]
-		match int(prop["type"]):
-			TYPE_BOOL, TYPE_INT:
-				parts.append("%s=%s" % [name, mat.get(name)])
-			TYPE_OBJECT:
-				if name != "next_pass":
-					parts.append("%s=%s" % [name, mat.get(name) != null])
+	var cls := mat.get_class()
+	var parts := PackedStringArray([cls])
+	var names: PackedStringArray = _key_props_of(mat, cls)
+	var values := PackedInt32Array()
+	values.resize(names.size())
+	for i in names.size():
+		var value: Variant = mat.get(names[i])
+		values[i] = int(value) if value is int or value is bool else (0 if value == null else 1)
+	parts.append(",".join(Array(values).map(str)))
 	var next := mat.next_pass
 	if next != null:
 		var next_key := item_key(next, cache)
