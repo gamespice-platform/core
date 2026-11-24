@@ -234,7 +234,9 @@ static func _material_key(mat: BaseMaterial3D, cache: Dictionary) -> String:
 	values.resize(plain.size() + objs.size())
 	var i := 0
 	for name: StringName in plain:
-		values[i] = int(mat.get(name))
+		# A stored int/bool property can read back as null (listed by the class, not served): 0, not an error per material.
+		var stored: Variant = mat.get(name)
+		values[i] = 0 if stored == null else int(stored)
 		i += 1
 	for name: StringName in objs:
 		values[i] = 0 if mat.get(name) == null else 1
