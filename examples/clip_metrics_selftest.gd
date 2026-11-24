@@ -4,7 +4,7 @@ extends Node
 ## godot --headless --path . res://examples/clip_metrics_selftest.tscn
 
 const SECTIONS := 1
-const CHECKS := 3
+const CHECKS := 4
 
 var _failed := 0
 var _checks := 0
@@ -54,6 +54,14 @@ func _ready() -> void:
 	var first: Dictionary = GSClipMetrics.new().pose_sample(0.0, mid, Vector3.ZERO, true)
 	_check(absf((first["feet"][0] as Vector3).y + 0.1) < 0.001, "sole comes from the rest pose, not a mid-blend first frame (foot y %.3f)" % (first["feet"][0] as Vector3).y)
 	mid.queue_free()
+	# A look that scales the hips 1.5x lifts the standing ankles with it: the sole is read at the pose's scales.
+	var big := _build(false)
+	add_child(big)
+	big.set_bone_pose_scale(1, Vector3.ONE * 1.5)
+	var tall: Dictionary = GSClipMetrics.new().pose_sample(0.0, big, Vector3.ZERO, true)
+	# The scaled ankle stands at -0.42 (0.9 - 1.5 * 0.88), the unscaled one at 0.02: the foot reads 0 only against the scaled sole.
+	_check(absf((tall["feet"][0] as Vector3).y) < 0.001, "sole follows the pose's bone scales (foot y %.3f)" % (tall["feet"][0] as Vector3).y)
+	big.queue_free()
 	_sections += 1
 	print("clip_metrics_selftest: %d sections, %d checks, %d failed" % [_sections, _checks, _failed])
 	if _sections != SECTIONS or _checks != CHECKS:

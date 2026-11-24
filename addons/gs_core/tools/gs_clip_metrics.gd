@@ -66,12 +66,27 @@ static func _leg_anchor(skeleton: Skeleton3D, foot: int) -> Variant:
 	return [best, skeleton.get_bone_global_rest(best).affine_inverse() * rest]
 
 
-## Height of the lowest ankle above [param root] with the skeleton in its rest pose: the sole offset.
+## Height of the lowest ankle above [param root] with the skeleton in its rest pose but at the pose's
+## bone scales: a look that stretches or shrinks bones (a brute's legs, a small one's) moves the sole,
+## and the rest pose alone would put it where the unscaled body's would be. Rotations and positions
+## stay the rest's, so a first sample taken mid-blend still reads the same sole.
 func _rest_sole(skeleton: Skeleton3D, root: Vector3) -> float:
+	var globals := {}
 	var low := INF
 	for foot in _feet_bones:
-		low = minf(low, (skeleton.global_transform * skeleton.get_bone_global_rest(foot).origin).y - root.y)
+		low = minf(low, (skeleton.global_transform * _scaled_rest(skeleton, foot, globals).origin).y - root.y)
 	return low
+
+
+static func _scaled_rest(skeleton: Skeleton3D, bone: int, cache: Dictionary) -> Transform3D:
+	if cache.has(bone):
+		return cache[bone]
+	var rest := skeleton.get_bone_rest(bone)
+	var local := Transform3D(Basis(rest.basis.get_rotation_quaternion()).scaled(skeleton.get_bone_pose_scale(bone)), rest.origin)
+	var parent := skeleton.get_bone_parent(bone)
+	var global := local if parent < 0 else _scaled_rest(skeleton, parent, cache) * local
+	cache[bone] = global
+	return global
 
 
 ## A sample (without `points`, `blocked`) from [param skeleton]'s pose at [param t]: foot bones by
