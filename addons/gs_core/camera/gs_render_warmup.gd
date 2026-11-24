@@ -192,26 +192,27 @@ static func _surface_layout(mesh: Mesh, surface: int) -> String:
 	return "arrays" + filled
 
 
-## Per material class, the name of every stored property that decides a pipeline (next_pass aside):
-## the property list is read once per class, not once per material (47k materials on a big map took 23 s).
+## Per material class, the names of every stored int and bool property, and of every stored object property
+## (next_pass aside), that decide a pipeline: read once per class, not once per material (47k materials on a big map took 23 s).
 static var _key_props := {}
 
 
-static func _key_props_of(mat: BaseMaterial3D, cls: String) -> PackedStringArray:
+static func _key_props_of(mat: BaseMaterial3D, cls: String) -> Array:
 	if _key_props.has(cls):
 		return _key_props[cls]
-	var out := PackedStringArray()
+	var plain := PackedStringArray()
+	var objs := PackedStringArray()
 	for prop: Dictionary in mat.get_property_list():
 		if not int(prop["usage"]) & PROPERTY_USAGE_STORAGE:
 			continue
 		match int(prop["type"]):
 			TYPE_BOOL, TYPE_INT:
-				out.append(prop["name"])
+				plain.append(prop["name"])
 			TYPE_OBJECT:
 				if prop["name"] != "next_pass":
-					out.append(prop["name"])
-	_key_props[cls] = out
-	return out
+					objs.append(prop["name"])
+	_key_props[cls] = [Array(plain), Array(objs)]
+	return _key_props[cls]
 
 
 static func _material_key(mat: BaseMaterial3D, cache: Dictionary) -> String:
@@ -219,19 +220,23 @@ static func _material_key(mat: BaseMaterial3D, cache: Dictionary) -> String:
 	if cache.has(id):
 		return cache[id]
 	var cls := mat.get_class()
-	var parts := PackedStringArray([cls])
-	var names: PackedStringArray = _key_props_of(mat, cls)
+	var names: Array = _key_props_of(mat, cls)
+	var plain: Array = names[0]
+	var objs: Array = names[1]
 	var values := PackedInt32Array()
-	values.resize(names.size())
-	for i in names.size():
-		var value: Variant = mat.get(names[i])
-		values[i] = int(value) if value is int or value is bool else (0 if value == null else 1)
-	parts.append(",".join(Array(values).map(str)))
+	values.resize(plain.size() + objs.size())
+	var i := 0
+	for name: String in plain:
+		values[i] = int(mat.get(name))
+		i += 1
+	for name: String in objs:
+		values[i] = 0 if mat.get(name) == null else 1
+		i += 1
+	var key := "mat:" + cls + ";" + values.to_byte_array().hex_encode()
 	var next := mat.next_pass
 	if next != null:
 		var next_key := item_key(next, cache)
-		parts.append("next=" + (next_key if next_key != "" else "id%d" % next.get_instance_id()))
-	var key := "mat:" + ";".join(parts)
+		key += ";next=" + (next_key if next_key != "" else "id%d" % next.get_instance_id())
 	cache[id] = key
 	return key
 
