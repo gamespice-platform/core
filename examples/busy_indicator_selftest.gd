@@ -55,8 +55,13 @@ func _ready() -> void:
 	await get_tree().process_frame
 	_check("a closed gate's art_problem meta is shown once", ind.error_text() == problem["message"] and not gate.has_meta(&"art_problem"))
 	gate.free()
+	var panel := ind.find_children("*", "PanelContainer", true, false)[0] as PanelContainer
+	_check("the panel sits 16 px from the corner by default", panel.offset_right == -16.0 and panel.offset_bottom == -16.0)
+	ind.margin_bottom = 230.0
+	ind.margin_right = 24.0
+	_check("a game's margins move it clear of its HUD", panel.offset_right == -24.0 and panel.offset_bottom == -230.0)
 	print("%d passed, %d failed" % [_passed, _failed])
-	get_tree().quit(1 if _failed > 0 or _passed < 7 else 0)
+	get_tree().quit(1 if _failed > 0 or _passed < 9 else 0)
 
 
 func _check(what: String, ok: bool) -> void:

@@ -31,6 +31,16 @@ signal visibility_changed_to(shown: bool)
 @export var max_tail_sec: float = 45.0
 ## Already-translated warning under the bar.
 @export var warning_text: String = "Still loading, the game may stutter."
+## Gap from the right edge of the screen to the panel. A game raises or moves it to keep its own HUD clear.
+@export var margin_right: float = 16.0:
+	set(v):
+		margin_right = v
+		_place()
+## Gap from the bottom edge of the screen to the panel. A game with a bottom-right HUD sets this above it.
+@export var margin_bottom: float = 16.0:
+	set(v):
+		margin_bottom = v
+		_place()
 ## Called by the error's action button; empty hides the button. A quota error from [method bind_cloud] fills it with clearing unpinned downloads.
 var action_fn: Callable = Callable()
 
@@ -361,8 +371,7 @@ func _build() -> void:
 	_panel.set_anchors_preset(Control.PRESET_BOTTOM_RIGHT)
 	_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_panel.grow_vertical = Control.GROW_DIRECTION_BEGIN
-	_panel.offset_right = -16
-	_panel.offset_bottom = -16
+	_place()
 	_panel.custom_minimum_size = Vector2(320, 0)
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.05, 0.06, 0.08, 0.82)
@@ -387,6 +396,13 @@ func _build() -> void:
 	_button = Button.new()
 	_button.pressed.connect(_on_button)
 	box.add_child(_button)
+
+
+func _place() -> void:
+	if _panel == null:
+		return
+	_panel.offset_right = -margin_right
+	_panel.offset_bottom = -margin_bottom
 
 
 func _label(parent: Node, size: int, color: Color) -> Label:
