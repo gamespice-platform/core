@@ -81,3 +81,5 @@ A pack says what it needs at its root: `{"format": 1, "addons": {"gs_net": 3}}`.
 - 46: GSAddonApi.check/check_text/check_mounted take `lenient_newer`; a pack below OLDEST is a logged warning, not a refusal.
 - 47: GSBusyIndicator.show_art_problem (the player-visible "map art does not fit the browser storage" message with a Clear downloaded content button); a bound gate's meta `art_problem` shows it too.
 - 48: GSBusyIndicator.capture_suppressed (static; the panel stays hidden while a capture tool runs) and GSShotGate.wait_lifted's `hide_busy` argument (default true, sets it).
+- 49: GSPaths.atomic_temp_path (the per-process, per-thread `.tmp` sibling an atomic write goes through). GSPaths.write_bytes now renames over the target instead of removing it first, and two writers of one file no longer share a temporary.
+- 50: GSLoadGate.advance(reason) and `timeout_ceiling_sec` (120, 0 = none): a held step that reports each piece of work done moves the timeout to count from that report, up to the ceiling after the closing. A step that never calls it times out as before.

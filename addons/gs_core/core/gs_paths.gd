@@ -296,7 +296,9 @@ static func append_bytes(path: String, bytes: PackedByteArray) -> GSResult:
 
 
 ## Writes bytes, creating parents and flushing the web filesystem.
-## [param atomic] writes a sibling [code].tmp[/code] and renames, so a crash leaves the old file or the new one, never half.
+## [param atomic] writes a sibling temporary file and renames it over the target, so a crash, or a reader at any moment, sees the old file or the new one, never half.
+## The temporary is named for this process and thread ([method atomic_temp_path]): a fixed [code].tmp[/code] shared by two writers of one file
+## (two suites on one machine, or two worker threads) had the second truncate the file the first had just renamed into place, and a reader got half of it.
 static func write_bytes(
 	path: String,
 	bytes: PackedByteArray,
@@ -306,7 +308,7 @@ static func write_bytes(
 	if not parent.ok:
 		return parent
 
-	var target := path + ".tmp" if atomic else path
+	var target := atomic_temp_path(path) if atomic else path
 
 	var f := FileAccess.open(target, FileAccess.WRITE)
 	if f == null:
@@ -322,23 +324,33 @@ static func write_bytes(
 	if atomic:
 		var dir := DirAccess.open(path.get_base_dir())
 		if dir == null:
+			var _dropped := DirAccess.remove_absolute(target)
 			return GSResult.failure(
 				GSError.from_engine(
 					DirAccess.get_open_error(),
 					"opening '%s'" % path.get_base_dir()
 				)
 			)
-		# rename() does not overwrite on every platform, so clear the target.
-		if FileAccess.file_exists(path):
-			dir.remove(path.get_file())
+		# Renamed straight over the target: there is never a moment with no file, which a reader took
+		# for a fresh player. Only where rename() will not replace is the target cleared and the rename retried.
 		var err := dir.rename(target.get_file(), path.get_file())
+		if err != OK and FileAccess.file_exists(path):
+			dir.remove(path.get_file())
+			err = dir.rename(target.get_file(), path.get_file())
 		if err != OK:
+			var _dropped := dir.remove(target.get_file())
 			return GSResult.failure(
 				GSError.from_engine(err, "renaming '%s'" % target)
 			)
 
 	GSWeb.sync_filesystem()
 	return GSResult.success(bytes.size())
+
+
+## The temporary [method write_bytes] writes [param path] through: a sibling ending in [code].tmp[/code],
+## named for this process and thread, so no two writers that can run at once share one.
+static func atomic_temp_path(path: String) -> String:
+	return "%s.%d-%d.tmp" % [path, OS.get_process_id(), OS.get_thread_caller_id()]
 
 
 static func write_text(

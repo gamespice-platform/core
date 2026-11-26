@@ -41,8 +41,13 @@ signal progress_changed(fraction: float, text: String)
 
 ## Seconds after which the gate opens anyway, with a warning naming what was still held: a
 ## game that never releases must not leave the player behind a picture. Counted from each
-## closing.
+## closing, or from the last [method GSLoadGate.advance] of a reason still held.
 @export var timeout_sec: float = 20.0
+
+## How far [method GSLoadGate.advance] can stretch [member timeout_sec], counted from the closing: a step that keeps
+## advancing is slow, not stuck, and on a slow machine a step read file by file outlasted 20 s of cover shared with
+## every step before it, so the game opened with that work undone. This still ends a step that advances forever. 0 = no ceiling.
+@export var timeout_ceiling_sec: float = 120.0
 
 ## Longest a frame may spend on a hold's slice of work under the cover, in milliseconds. -1 picks 24 with no threads
 ## (a browser) and 0 elsewhere; `--cover-slice-msec=N` overrides. See [method slice_msec].
@@ -140,6 +145,7 @@ var _progress_text: String = ""
 var _last_text: String = ""
 var _host: Object = null
 var _closed_msec: int = 0
+var _advanced_msec: int = 0
 var _settled: int = 0
 var _host_wait_msec: int = 0
 var _warmup: Node = null

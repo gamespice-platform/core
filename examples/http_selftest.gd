@@ -12,14 +12,14 @@ const PORT_LAST := 28330
 const BODY := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-const CHECKS := 48
+const CHECKS := 53
 
 ## The scratch directory. Removed at the start of every run and at the end.
 const SCRATCH := "user://http_selftest"
 
 ## Sections entered against sections that ran to their last line, and against this: a runtime error aborts a section silently,
 ## and a section that bailed after a failed guard counts as unfinished on purpose. The CHECKS total is the other half (docs/testing.md).
-const SECTIONS := 10
+const SECTIONS := 11
 
 var _passed := 0
 var _failed := 0
@@ -72,6 +72,7 @@ func _run() -> void:
 	await _test_max_bytes()
 	_test_append_file()
 	_test_replace_file()
+	_test_atomic_write()
 	GSPaths.remove_tree(SCRATCH)
 
 	print("")
@@ -336,6 +337,51 @@ func _test_replace_file() -> void:
 	_check(not FileAccess.file_exists(absent), "there really is nothing there to replace")
 	res = GSPaths.replace_file(absent, src)
 	_check(res.ok and _read(absent) == "fresh", "and works when there is nothing to replace")
+	_done()
+
+
+## Two writers of one file at once (FC's suites all play as one player, four to a machine):
+## a shared fixed .tmp had a reader see half a JSON file, "Could not read achievement progress".
+func _test_atomic_write() -> void:
+	_section("GSPaths.write_bytes atomic")
+
+	var dest := _scratch("atomic.json")
+	_write(dest, "old")
+	var res := GSPaths.write_text(dest, "new")
+	_check(res.ok and _read(dest) == "new", "replaces an existing file", _read(dest))
+
+	var main_tmp := GSPaths.atomic_temp_path(dest)
+	var worker_tmp := [""]
+	var task := WorkerThreadPool.add_task(func() -> void: worker_tmp[0] = GSPaths.atomic_temp_path(dest))
+	WorkerThreadPool.wait_for_task_completion(task)
+	_check(main_tmp.ends_with(".tmp") and worker_tmp[0] != main_tmp, "each thread writes through a temporary of its own",
+			"%s / %s" % [main_tmp, worker_tmp[0]])
+
+	const WRITERS := 4
+	const ROUNDS := 40
+	var payload := {"steps": range(2000)}
+	# Seeded first: "new" above is not JSON, and a read before the first writer finishes would see it.
+	GSPaths.write_json(dest, payload)
+	var failed := [0]
+	var writer := func(_i: int) -> void:
+		for _r in ROUNDS:
+			if not GSPaths.write_json(dest, payload).ok:
+				failed[0] += 1
+	var group := WorkerThreadPool.add_group_task(writer, WRITERS)
+	var reads := 0
+	var bad := 0
+	var detail := ""
+	while not WorkerThreadPool.is_group_task_completed(group) or reads == 0:
+		reads += 1
+		var got := GSPaths.read_json(dest)
+		if not got.ok or typeof(got.value) != TYPE_DICTIONARY:
+			bad += 1
+			detail = "%s; %d bytes" % [got.code() if not got.ok else "not an object", FileAccess.get_file_as_bytes(dest).size()]
+	WorkerThreadPool.wait_for_group_task_completion(group)
+	_check(failed[0] == 0, "%d writers x %d rounds all succeed" % [WRITERS, ROUNDS], "%d failed" % failed[0])
+	_check(bad == 0, "a reader during them only ever sees a whole file", "%d of %d reads bad: %s" % [bad, reads, detail])
+	var left := Array(DirAccess.get_files_at(ProjectSettings.globalize_path(SCRATCH))).filter(func(f: String) -> bool: return f.ends_with(".tmp"))
+	_check(left.is_empty(), "and no temporary is left behind", str(left))
 	_done()
 
 

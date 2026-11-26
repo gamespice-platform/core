@@ -162,6 +162,14 @@ func release(reason: StringName) -> void:
 		_emit_progress()
 
 
+## Says the held [param reason] just finished a piece of its work: [member timeout_sec] counts from now, up to
+## [member timeout_ceiling_sec] after the closing. A reason not held is ignored. A step that never calls it
+## still times out [member timeout_sec] after the closing.
+func advance(reason: StringName) -> void:
+	if is_holding(reason):
+		_advanced_msec = Time.get_ticks_msec()
+
+
 ## Holds [param reason] until [param predicate] returns true, asked every frame. A
 ## predicate whose object was freed counts as true.
 func require(reason: StringName, predicate: Callable, text: String = "") -> void:
@@ -341,6 +349,7 @@ func _close() -> void:
 		_cancel_warmup()
 	_state = State.CLOSED
 	_closed_msec = Time.get_ticks_msec()
+	_advanced_msec = 0
 	if not is_inside_tree():
 		return
 	_freeze_all()
@@ -356,7 +365,7 @@ func _process(_delta: float) -> void:
 	match _state:
 		State.CLOSED:
 			_poll_requires()
-			if not _order.is_empty() and Time.get_ticks_msec() - _closed_msec > int(timeout_sec * 1000.0):
+			if not _order.is_empty() and _past_timeout():
 				_timed_out.assign(_order)
 				_log_timeout()
 				_holds.clear()
@@ -374,11 +383,21 @@ func _process(_delta: float) -> void:
 				_open()
 
 
+## Whether the held steps have run out of time: [member timeout_sec] after the closing or the last
+## [method advance], never more than [member timeout_ceiling_sec] (0 = none) after the closing.
+func _past_timeout() -> bool:
+	var now := Time.get_ticks_msec()
+	if now - maxi(_closed_msec, _advanced_msec) > int(timeout_sec * 1000.0):
+		return true
+	return timeout_ceiling_sec > 0.0 and now - _closed_msec > int(maxf(timeout_ceiling_sec, timeout_sec) * 1000.0)
+
+
 ## An error, naming the step the cover was saying: a step that never finishes (a script that did not compile, a signal that never came) must not read as a quiet warning.
 func _log_timeout() -> void:
 	var step := status_text()
 	GSLog.error(CHANNEL, "a load step did not finish; showing the game anyway", {
-		"seconds": timeout_sec, "step": step, "still_held": _reason_strings(),
+		"seconds": timeout_sec, "closed_for_sec": (Time.get_ticks_msec() - _closed_msec) / 1000.0,
+		"step": step, "still_held": _reason_strings(),
 	})
 
 

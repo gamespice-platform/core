@@ -2,8 +2,8 @@ extends Node
 
 ## Exercises [GSLoadGate] and [GSLoadingCover]: holds, predicates, the timeout warning, freezing and settling under the cover, closing again, the camera requirement and warm-up, a host claiming the cover, the older shells' root signal.
 
-const SECTIONS := 16
-const CHECKS := 141
+const SECTIONS := 17
+const CHECKS := 148
 
 var _passed := 0
 var _failed := 0
@@ -45,7 +45,9 @@ func _run() -> void:
 	await _test_audio_mute()  # first: gates left over from other sections hold the mute
 	await _test_hold_release()
 	await _test_predicates()
-	await _test_timeout()
+	var timeouts := preload("res://examples/load_gate_timeout_checks.gd").new(self)
+	await timeouts.test_timeout()
+	await timeouts.test_advance()
 	await _test_freeze()
 	await _test_settle()
 	await _test_settle_by_position()
@@ -148,30 +150,6 @@ func _test_predicates() -> void:
 	_check(gate2.is_open(), "a predicate on a freed object counts as met")
 	_drop(gate)
 	_drop(gate2)
-
-
-func _test_timeout() -> void:
-	_section("the timeout opens it with an error naming the step")
-	var gate := _make()
-	gate.timeout_sec = 0.3
-	gate.hold(&"map", "Loading the map")
-	gate.require(&"never", func() -> bool: return false)
-	_records.clear()
-	var t0 := Time.get_ticks_msec()
-	while not gate.is_open() and Time.get_ticks_msec() - t0 < 15000:
-		await get_tree().process_frame
-	_check(gate.is_open(), "open after the timeout")
-	var warned: Array = _records.filter(func(r: Dictionary) -> bool:
-		return int(r["level"]) == GSLog.Level.ERROR and r["channel"] == GSLoadGate.CHANNEL)
-	_check(warned.size() == 1, "exactly one error", str(warned.size()))
-	_check(warned.size() == 1 and str((warned[0]["fields"] as Dictionary).get("step", "")) == "Loading the map", "it names the step the cover said", str(warned))
-	var held: Array = (warned[0]["fields"] as Dictionary).get("still_held", []) if warned.size() > 0 else []
-	_check(held.has("map") and held.has("never"), "naming every reason still held", str(held))
-	_check(gate.reasons().is_empty(), "and nothing is held afterwards")
-	var infos: Array = _records.filter(func(r: Dictionary) -> bool:
-		return int(r["level"]) == GSLog.Level.INFO and r["channel"] == GSLoadGate.CHANNEL)
-	_check(infos.size() == 1 and (infos[0]["fields"]["timed_out"] as Array).size() == 2, "the open line says it timed out", str(infos))
-	_drop(gate)
 
 
 func _test_freeze() -> void:
