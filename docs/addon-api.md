@@ -80,3 +80,4 @@ A pack says what it needs at its root: `{"format": 1, "addons": {"gs_net": 3}}`.
 - 45: GSWeb.heap_bytes (the WebAssembly heap size through a named function in gs_web.js, 0 off-web).
 - 46: GSAddonApi.check/check_text/check_mounted take `lenient_newer`; a pack below OLDEST is a logged warning, not a refusal.
 - 47: GSBusyIndicator.show_art_problem (the player-visible "map art does not fit the browser storage" message with a Clear downloaded content button); a bound gate's meta `art_problem` shows it too.
+- 48: GSBusyIndicator.capture_suppressed (static; the panel stays hidden while a capture tool runs) and GSShotGate.wait_lifted's `hide_busy` argument (default true, sets it).

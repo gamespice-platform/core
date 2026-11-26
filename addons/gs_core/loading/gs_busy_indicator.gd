@@ -18,6 +18,9 @@ const CLOUD_PHASE_LAST := 6
 ## [Engine] meta a host sets to true while its own full-screen cover (the shell's loading screen) is up. The cover already shows the bar and the text, so the panel stays hidden under it instead of drawing a second box over it.
 const HOST_COVER_META := &"gs_host_cover_up"
 
+## True while a screenshot or capture tool is running: the panel stays hidden (state is still tracked). A software-rendered capture never gets 30 steady frames, so without this the "Still loading" toast sits in every shot. [method GSShotGate.wait_lifted] sets it; a tool may set it directly.
+static var capture_suppressed := false
+
 ## The user pressed the error's action button.
 signal action_pressed()
 ## The panel appeared (true) or went away (false).
@@ -328,7 +331,7 @@ static func host_cover_up() -> bool:
 
 
 func _wanted() -> bool:
-	return (is_busy() or _tail or _error != "") and not host_cover_up()
+	return (is_busy() or _tail or _error != "") and not host_cover_up() and not capture_suppressed
 
 
 func _apply() -> void:

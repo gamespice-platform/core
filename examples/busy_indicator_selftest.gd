@@ -60,6 +60,17 @@ func _ready() -> void:
 	ind.margin_bottom = 230.0
 	ind.margin_right = 24.0
 	_check("a game's margins move it clear of its HUD", panel.offset_right == -24.0 and panel.offset_bottom == -230.0)
+	ind.begin(&"shot", "Working")
+	await get_tree().process_frame
+	_check("shows before a capture", ind.is_showing())
+	await GSShotGate.wait_lifted(get_tree(), null)
+	await get_tree().process_frame
+	_check("wait_lifted hides the toast for a shot, still busy", GSBusyIndicator.capture_suppressed and not ind.is_showing() and ind.is_busy())
+	GSBusyIndicator.capture_suppressed = false
+	await get_tree().process_frame
+	_check("back when capture suppression ends", ind.is_showing())
+	await GSShotGate.wait_lifted(get_tree(), null, 15.0, 0.25, 1.0, false)
+	_check("hide_busy=false leaves it", not GSBusyIndicator.capture_suppressed)
 	print("%d passed, %d failed" % [_passed, _failed])
 	get_tree().quit(1 if _failed > 0 or _passed < 9 else 0)
 
