@@ -78,6 +78,13 @@ func _process(delta: float) -> void:
 
 
 var _wanted: Dictionary = {}
+## Per-frame scratch, reused: hits of the near sphere and of the line capsule, ids to drop,
+## one query, and a read-only stand-in for "no entry".
+var _near_hits: Array[Object] = []
+var _line_hits: Array[Object] = []
+var _gone: Array[int] = []
+var _query: PhysicsShapeQueryParameters3D = null
+const _NONE := {}
 
 
 ## One frame's fade, for a caller placing its own camera without this node's parent.
@@ -91,10 +98,12 @@ func update(camera_position: Vector3, focus_position: Vector3, delta: float) -> 
 	if world != null and collision_mask != 0:
 		var space := world.direct_space_state
 
-		for collider in _near(space, camera_position):
+		_near(space, camera_position, _near_hits)
+		for collider in _near_hits:
 			wanted[collider] = 1.0
 
-		for collider in _line(space, camera_position, focus_position):
+		_line(space, camera_position, focus_position, _line_hits)
+		for collider in _line_hits:
 			if not wanted.has(collider):
 				wanted[collider] = faded
 
@@ -107,7 +116,7 @@ func update(camera_position: Vector3, focus_position: Vector3, delta: float) -> 
 	for collider in wanted:
 		_target(collider as Object, float(wanted[collider]))
 
-	for key in _fading.keys():
+	for key: int in _fading:
 		var entry: Dictionary = _fading[key]
 
 		if not wanted.has(entry.get("collider")):
@@ -159,23 +168,25 @@ func _analytic(camera_position: Vector3, focus_position: Vector3, wanted: Dictio
 			wanted[body] = faded
 
 
-func _near(space: PhysicsDirectSpaceState3D, at: Vector3) -> Array:
+func _near(space: PhysicsDirectSpaceState3D, at: Vector3, out: Array[Object]) -> void:
+	out.clear()
 	if near <= 0.0:
-		return []
+		return
 
 	if _near_shape == null:
 		_near_shape = SphereShape3D.new()
 
 	_near_shape.radius = near
-	return _colliders(space, _near_shape, Transform3D(Basis.IDENTITY, at))
+	_colliders(space, _near_shape, Transform3D(Basis.IDENTITY, at), out)
 
 
-func _line(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Array:
+func _line(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3, out: Array[Object]) -> void:
+	out.clear()
 	var offset := to - from
 	var length := offset.length() - focus_clearance
 
 	if length <= line_radius * 2.0:
-		return []
+		return
 
 	var direction := offset.normalized()
 
@@ -197,18 +208,18 @@ func _line(space: PhysicsDirectSpaceState3D, from: Vector3, to: Vector3) -> Arra
 	var z := x.cross(y).normalized()
 	var centre := from + direction * (length * 0.5)
 
-	return _colliders(space, _line_shape, Transform3D(Basis(x, y, z), centre))
+	_colliders(space, _line_shape, Transform3D(Basis(x, y, z), centre), out)
 
 
-func _colliders(space: PhysicsDirectSpaceState3D, shape: Shape3D, at: Transform3D) -> Array:
-	var params := PhysicsShapeQueryParameters3D.new()
+func _colliders(space: PhysicsDirectSpaceState3D, shape: Shape3D, at: Transform3D, out: Array[Object]) -> void:
+	if _query == null:
+		_query = PhysicsShapeQueryParameters3D.new()
+	var params := _query
 	params.shape = shape
 	params.transform = at
 	params.collision_mask = collision_mask
 	params.exclude = _excluded
 	params.collide_with_areas = false
-
-	var out: Array = []
 
 	for hit in space.intersect_shape(params, 16):
 		var collider: Object = (hit as Dictionary).get("collider")
@@ -216,7 +227,6 @@ func _colliders(space: PhysicsDirectSpaceState3D, shape: Shape3D, at: Transform3
 		if collider != null and not out.has(collider):
 			out.append(collider)
 
-	return out
 
 
 func _target(collider: Object, amount: float) -> void:
@@ -229,10 +239,10 @@ func _target(collider: Object, amount: float) -> void:
 		return
 
 	var key := root.get_instance_id()
-	var entry: Dictionary = _fading.get(key, {})
+	var entry: Dictionary = _fading.get(key, _NONE)
 
 	if entry.is_empty():
-		entry = {"root": weakref(root), "meshes": [], "ids": {}, "amount": 0.0, "collider": collider}
+		entry = {"root": weakref(root), "meshes": [], "ids": {}, "hidden": {}, "amount": 0.0, "collider": collider}
 		_fading[key] = entry
 
 	# Collected again on every frame it is hit, merged: a figure that rebuilt its avatar
@@ -254,11 +264,13 @@ func _target(collider: Object, amount: float) -> void:
 func _step(delta: float) -> int:
 	var factor := 1.0 - exp(-maxf(delta, 0.0) / maxf(fade_time, 0.001))
 
-	for key in _fading.keys():
+	_gone.clear()
+
+	for key: int in _fading:
 		var entry: Dictionary = _fading[key]
 
 		if (entry["root"] as WeakRef).get_ref() == null:
-			_fading.erase(key)
+			_gone.append(key)
 			continue
 
 		var target := float(entry.get("target", 0.0))
@@ -270,15 +282,18 @@ func _step(delta: float) -> int:
 		_apply(entry, amount)
 
 		if amount <= 0.0 and target <= 0.0:
-			_fading.erase(key)
+			_gone.append(key)
+
+	# Erased after the walk: erasing from a Dictionary while iterating it is undefined.
+	for key: int in _gone:
+		_fading.erase(key)
 
 	return _fading.size()
 
 
 func _apply(entry: Dictionary, amount: float) -> void:
 	entry["amount"] = amount
-	var hidden: Dictionary = entry.get("hidden", {})
-	entry["hidden"] = hidden
+	var hidden: Dictionary = entry["hidden"]
 
 	for ref in entry["meshes"]:
 		var mesh := (ref as WeakRef).get_ref() as GeometryInstance3D
@@ -339,7 +354,7 @@ func is_faded(node: Node) -> bool:
 	if node == null:
 		return false
 
-	var entry: Dictionary = _fading.get(node.get_instance_id(), {})
+	var entry: Dictionary = _fading.get(node.get_instance_id(), _NONE)
 	return not entry.is_empty() and float(entry["amount"]) > 0.5
 
 
