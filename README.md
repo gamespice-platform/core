@@ -2,6 +2,8 @@
 
 The shared foundation of the [GameSpice](https://github.com/gamespice-platform) family for Godot 4.7+. It holds the small pieces every other addon needs: results and errors, logging, configuration, platform checks, paths, hashing, an HTTP client, a transport layer, reproducible randomness and a loading gate. It is the layer under [GameSpice Server](https://github.com/gamespice-platform/server), [GameSpice Auth](https://github.com/gamespice-platform/auth) and [GameSpice Cloud](https://github.com/gamespice-platform/cloud).
 
+This is the base GameSpice addon, MIT licensed and built with Claude Code. It has headless tests under `examples/`, such as `capability_report` and `randomness_selftest`. Every game in [Zee's Games](https://zeesgames.com) is built on it and runs on live servers.
+
 It targets desktop (Windows, macOS, Linux), mobile (Android, iOS) and the web from one codebase. Browser limits are handled in the code, not hidden.
 
 ## Install
@@ -74,9 +76,26 @@ Worker caps are settings: `GSParallel.auto_max` (default 8, 0 = unlimited) and `
 
 The first scene prints what the build can do. The second checks the randomness code. Both run offline. The capability report shows quickly that a web export has no threads or that a device reports no storage quota, which changes how gs-cloud behaves. The `examples/` folder holds more self-tests.
 
-## Status
+## Used by
 
-Built and maintained with Claude Code. The test suites pass, but little of this has been in front of real players yet. Please report rough edges by opening an issue.
+Every game in the collection vendors it, since every other addon sits on top of it:
+
+- [Fatal Contact](https://zeesgames.com/fatal-contact)
+- [Airdrift](https://zeesgames.com/airdrift)
+- [Playlot](https://zeesgames.com/playlot)
+- [Hungario](https://zeesgames.com/hungario)
+- [Buses From Hell](https://zeesgames.com/buses-from-hell)
+- [Smash Copter](https://zeesgames.com/smash-copter)
+- [Zombie Zone](https://zeesgames.com/zombie-zone)
+- [Hide n Seek](https://zeesgames.com/hide-n-seek)
+- [Prop Hunt](https://zeesgames.com/prop-hunt)
+- [Murder Mystery](https://zeesgames.com/murder-mystery)
+- [Deathrun](https://zeesgames.com/deathrun)
+- [Wipeout](https://zeesgames.com/wipeout)
+- [Dangerous Delivery](https://zeesgames.com/dangerous-delivery)
+- [Look At Me](https://zeesgames.com/look-at-me)
+
+The whole collection is at [zeesgames.com](https://zeesgames.com).
 
 ## Licence
 
