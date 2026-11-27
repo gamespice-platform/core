@@ -5,9 +5,12 @@ extends RefCounted
 ## Web needs an explicit flush (every write helper syncs); server-supplied paths are attacker-controlled ([method safe_relative]);
 ## and [code]user://[/code] is not a disk path on mobile or web, so never hand it to an OS call.
 
-# No log channel: static filesystem helpers returning a GSResult. The caller knows what
-# the file was for and whether its absence matters -- a missing bindings file is normal,
-# a missing ban list is not -- and this class cannot tell those apart.
+# Failures return a GSResult: the caller knows whether a missing file matters (bindings: normal; ban list: not).
+# The one thing logged here is a write that did not land whole, which is data loss whoever the caller is.
+const CHANNEL := "gs.paths"
+
+## Test seam, -1 off: [method write_bytes] stores only this many bytes, as a full disk does, to prove the old file survives.
+static var _fault_short_write := -1
 
 ## Path segments that are never legal in content-supplied relative paths, on any
 ## platform. Checked case-insensitively without extension because Windows
@@ -295,10 +298,9 @@ static func append_bytes(path: String, bytes: PackedByteArray) -> GSResult:
 	return GSResult.success(file_size(path))
 
 
-## Writes bytes, creating parents and flushing the web filesystem.
-## [param atomic] writes a sibling temporary file and renames it over the target, so a crash, or a reader at any moment, sees the old file or the new one, never half.
-## The temporary is named for this process and thread ([method atomic_temp_path]): a fixed [code].tmp[/code] shared by two writers of one file
-## (two suites on one machine, or two worker threads) had the second truncate the file the first had just renamed into place, and a reader got half of it.
+## Writes bytes, creating parents and flushing the web filesystem. [param atomic] writes a sibling temporary and renames it over the target: a crash or a reader sees the old file or the new one, never half.
+## The temporary is per process and thread ([method atomic_temp_path]): a shared [code].tmp[/code] let a second writer truncate the file the first had just renamed in.
+## A short or failed write (a full disk wrote PH's progress file as 0 bytes) is logged as an error, its temporary removed and the old file left as it was.
 static func write_bytes(
 	path: String,
 	bytes: PackedByteArray,
@@ -318,8 +320,20 @@ static func write_bytes(
 			)
 		)
 
-	f.store_buffer(bytes)
+	var data := bytes
+	if _fault_short_write >= 0 and _fault_short_write < bytes.size():
+		data = bytes.slice(0, _fault_short_write)
+	var stored := f.store_buffer(data)
+	var write_err := f.get_error()
+	if stored and write_err == OK:
+		f.flush()
+		write_err = f.get_error()
 	f.close()
+
+	# The length on disk is the check that counts: a full disk can fail inside close() with no error reported.
+	var written := file_size(target)
+	if not stored or write_err != OK or written != bytes.size():
+		return _short_write(path, target, atomic, bytes.size(), written, write_err)
 
 	if atomic:
 		var dir := DirAccess.open(path.get_base_dir())
@@ -345,6 +359,21 @@ static func write_bytes(
 
 	GSWeb.sync_filesystem()
 	return GSResult.success(bytes.size())
+
+
+# A write that did not land whole: its temporary goes and the old file stays (a non-atomic write has already truncated it).
+static func _short_write(path: String, target: String, atomic: bool, wanted: int, written: int, err: int) -> GSResult:
+	if atomic:
+		var _dropped := DirAccess.remove_absolute(target)
+	if err == OK:
+		err = ERR_FILE_CANT_WRITE
+	var kept := "the existing file is left as it was" if atomic else "the file is torn"
+	GSLog.error(CHANNEL, "short write: %s" % kept, {
+		"path": path, "wanted": wanted, "written": written, "error": error_string(err),
+	})
+	var e := GSError.from_engine(err, "writing '%s'" % path)
+	e.detail = "%d of %d bytes written; %s" % [maxi(written, 0), wanted, e.detail]
+	return GSResult.failure(e)
 
 
 ## The temporary [method write_bytes] writes [param path] through: a sibling ending in [code].tmp[/code],

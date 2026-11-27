@@ -12,14 +12,14 @@ const PORT_LAST := 28330
 const BODY := "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ\
 abcdefghijklmnopqrstuvwxyz0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 
-const CHECKS := 53
+const CHECKS := 62
 
 ## The scratch directory. Removed at the start of every run and at the end.
 const SCRATCH := "user://http_selftest"
 
 ## Sections entered against sections that ran to their last line, and against this: a runtime error aborts a section silently,
 ## and a section that bailed after a failed guard counts as unfinished on purpose. The CHECKS total is the other half (docs/testing.md).
-const SECTIONS := 11
+const SECTIONS := 12
 
 var _passed := 0
 var _failed := 0
@@ -73,6 +73,7 @@ func _run() -> void:
 	_test_append_file()
 	_test_replace_file()
 	_test_atomic_write()
+	_test_short_write()
 	GSPaths.remove_tree(SCRATCH)
 
 	print("")
@@ -382,6 +383,39 @@ func _test_atomic_write() -> void:
 	_check(bad == 0, "a reader during them only ever sees a whole file", "%d of %d reads bad: %s" % [bad, reads, detail])
 	var left := Array(DirAccess.get_files_at(ProjectSettings.globalize_path(SCRATCH))).filter(func(f: String) -> bool: return f.ends_with(".tmp"))
 	_check(left.is_empty(), "and no temporary is left behind", str(left))
+	_done()
+
+
+## A full disk on PH stored 0 of a progress file's bytes and the rename put the empty temporary over the good file.
+func _test_short_write() -> void:
+	_section("GSPaths.write_bytes short write")
+
+	var dest := _scratch("progress.json")
+	var good := JSON.stringify({"unlocked": ["first_blood", "survivor"], "points": 120})
+	_write(dest, good)
+	var before := FileAccess.get_file_as_bytes(dest)
+	var errors: Array[Dictionary] = []
+	var sink := func(r: Dictionary) -> void:
+		if int(r["level"]) >= GSLog.Level.ERROR and r["channel"] == GSPaths.CHANNEL:
+			errors.append(r)
+	GSLog.add_sink(sink)
+
+	var payload := JSON.stringify({"unlocked": ["first_blood", "survivor", "marksman"], "points": 180})
+	for keep: int in [0, 7]:
+		GSPaths._fault_short_write = keep
+		var res := GSPaths.write_text(dest, payload)
+		GSPaths._fault_short_write = -1
+		_check(not res.ok, "a write that stores %d of %d bytes fails" % [keep, payload.length()])
+		_check(FileAccess.get_file_as_bytes(dest) == before, "and the old file survives byte-identical", _read(dest))
+		_check(not FileAccess.file_exists(GSPaths.atomic_temp_path(dest)), "and its temporary is removed")
+	_check(errors.size() == 2, "each one is logged as an error on %s" % GSPaths.CHANNEL, str(errors.size()))
+	var last := errors[-1] if not errors.is_empty() else {}
+	_check(not last.is_empty() and int(last["fields"].get("written", -1)) == 7 and last["fields"].get("path", "") == dest,
+			"naming the file and the bytes that landed", str(last.get("fields", {})))
+	GSLog.remove_sink(sink)
+
+	var whole := GSPaths.write_text(dest, payload)
+	_check(whole.ok and _read(dest) == payload, "with the seam off the same write lands whole", "" if whole.ok else whole.error.message)
 	_done()
 
 
