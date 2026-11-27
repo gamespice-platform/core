@@ -49,6 +49,10 @@ A renderer compiles a material's shader the first time something using it is dra
 
 The client shell (GameSpice Server Deploy) runs it under its loading screen; `examples/camera_selftest` covers collection, placement and the timeout.
 
+## Arming the lightmap shader group early: GSShaderGroupArm
+
+Forward+ keeps the lightmap variants in a shader group of their own (the advanced group) and enables it on the first lightmapped draw, compiling it for every shader alive at that moment. At a level's first draw that is every material of the level, the weapons and the figures: about 1000 ms in one frame in Fatal Contact (dm_box on staging), and in its `tools/lightmap_first_draw.gd` 185 ms with no other shaders against 6993 ms with 60 of them. `GSShaderGroupArm.start(parent)` draws one lightmapped box in a 4x4 viewport of its own world before those shaders exist, so the group is on when each is made and the level's first draw finds it compiled; after `frames` drawn frames (2) it emits `armed` and frees itself. `wanted()` is false headless and outside Forward+, where `start` returns null. Start it before the warm-ups and the level, under the loading screen: armed late it is the same one-frame cost. `examples/shader_group_arm_selftest` covers the headless no-op and the viewport it builds.
+
 ## Drawing a held model at its own lens: GSViewLens
 
 A first-person model is drawn at its own vertical field of view (`hands_fov`) under whatever lens the camera has: `GSViewLens.apply(model, camera, hands_fov)` scales X and Y by the ratio of the two lenses and pulls the model toward the eye, never more than `MAX_PULL_IN`, so its apparent size at the reference lens is kept. `vertical_from_horizontal_4_3` turns a game's field-of-view setting (horizontal on a 4:3 frame) into the vertical one. zee-gs-weapons' `ZeeViewModel` and GameSpice Props' `GSToolView` both call it.
