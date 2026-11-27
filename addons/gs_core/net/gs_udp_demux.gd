@@ -33,6 +33,8 @@ var _relayed_in: int = 0
 var _relayed_out: int = 0
 var _handled: int = 0
 var _dropped: int = 0
+# Reused by pump_out each tick for the relays gone idle.
+var _stale: Array = []
 
 
 ## Binds the public port. [param enet_port] is the loopback port the ENet host
@@ -101,7 +103,8 @@ func pump_out() -> void:
 		return
 
 	var now := Time.get_ticks_msec()
-	var stale: Array = []
+	var stale := _stale
+	stale.clear()
 
 	for key in _relays:
 		var relay: Dictionary = _relays[key]

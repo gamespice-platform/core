@@ -1,0 +1,35 @@
+# Runtime scripts checked by gs-ci scripts/check-gd-perf.py (tools/gd_perf_lint.py).
+# One fnmatch glob per line over tracked paths. Baseline: ci/efficiency/gd-perf.tsv.
+addons/gs_core/camera/gs_camera_boom.gd
+addons/gs_core/camera/gs_camera_fade.gd
+addons/gs_core/camera/gs_view_lens.gd
+addons/gs_core/core/gs_bounded_buffer.gd
+addons/gs_core/core/gs_hash.gd
+addons/gs_core/core/gs_job.gd
+addons/gs_core/core/gs_log.gd
+addons/gs_core/core/gs_log_bus.gd
+addons/gs_core/core/gs_log_sink.gd
+addons/gs_core/core/gs_node_ref.gd
+addons/gs_core/core/gs_parallel.gd
+addons/gs_core/core/gs_rate_limiter.gd
+addons/gs_core/core/gs_registry.gd
+addons/gs_core/core/gs_registry_bus.gd
+addons/gs_core/core/gs_scheduler.gd
+addons/gs_core/core/gs_stacked_column.gd
+addons/gs_core/core/gs_value.gd
+addons/gs_core/net/gs_dual_peer.gd
+addons/gs_core/net/gs_metered_peer.gd
+addons/gs_core/net/gs_transport.gd
+addons/gs_core/net/gs_transport_auto.gd
+addons/gs_core/net/gs_transport_dual.gd
+addons/gs_core/net/gs_transport_enet.gd
+addons/gs_core/net/gs_transport_websocket.gd
+addons/gs_core/net/gs_udp_demux.gd
+addons/gs_core/profile/gs_frame_cost.gd
+addons/gs_core/profile/gs_hitch_log.gd
+addons/gs_core/profile/gs_space_query.gd
+addons/gs_core/random/gs_random_manager.gd
+addons/gs_core/random/gs_random_schedule.gd
+addons/gs_core/random/gs_random_stream.gd
+# Setup, per-connection and stats/report paths; per-packet and per-tick code stays hot.
+cold+: ^(open|add_handler|transport_stats|peer_counts|get_peer_address|get_peer_port|remote_for_relay_port|_relay_for|_close_relay|_enet_remote|note_remote|take|take_events|take_queries|describe|summary|report|dump|to_dict|from_dict)$
